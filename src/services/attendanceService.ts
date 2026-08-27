@@ -1,11 +1,11 @@
 import { supabase } from '@/lib/supabase';
-import { Student } from '@/types/database';
+import { Student, AttendanceRecordPayload } from '@/types/database';
 
 export async function fetchSchoolAndClassInfo(userEmail: string) {
-  // 1. Ambil tenant_id & full_name dari tabel users berdasarkan email login
+  // 1. Ambil tenant_id, user_id, & full_name dari tabel users berdasarkan email login
   const { data: userData, error: userError } = await supabase
     .from('users')
-    .select('tenant_id, full_name')
+    .select('user_id, tenant_id, full_name')
     .eq('email', userEmail)
     .single();
 
@@ -26,6 +26,7 @@ export async function fetchSchoolAndClassInfo(userEmail: string) {
     .single();
 
   return {
+    userId: userData.user_id, // Penting untuk recorded_by
     tenantId: userData.tenant_id,
     classId: classData?.class_id,
     schoolName: tenantData?.school_name || 'Sekolah',
@@ -34,7 +35,6 @@ export async function fetchSchoolAndClassInfo(userEmail: string) {
   };
 }
 
-// Mengambil siswa murni berdasarkan tenant_id dan class_id spesifik
 export async function fetchStudentsByTenant(tenantId: string, classId: string): Promise<Student[]> {
   const { data, error } = await supabase
     .from('students')
@@ -48,4 +48,33 @@ export async function fetchStudentsByTenant(tenantId: string, classId: string): 
     ...s,
     status: 'H', // Default status Hadir
   }));
+}
+
+export async function saveAttendanceRecords(
+  tenantId: string,
+  students: Student[],
+  userId: string
+): Promise<boolean> {
+  const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+
+  const records: AttendanceRecordPayload[] = students.map((student) => ({
+    tenant_id: tenantId,
+    student_id: student.student_id,
+    date: today,
+    status: student.status || 'H',
+    recorded_by: userId,
+  }));
+
+  const { error } = await supabase
+    .from('attendance')
+    .upsert(records, { 
+      onConflict: 'student_id,date' 
+    });
+
+  if (error) {
+    console.error('Gagal menyimpan absensi:', error.message);
+    throw error;
+  }
+
+  return true;
 }

@@ -25,3 +25,14 @@ export type SchoolHoliday = {
   end_date: string;
   description: string;
 };
+
+export type MonthlyAttendanceSummary = {
+  student_id: string;
+  nis: string;
+  full_name: string;
+  total_h: number;
+  total_s: number;
+  total_i: number;
+  total_a: number;
+  total_presence: number;
+};

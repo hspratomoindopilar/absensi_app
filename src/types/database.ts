@@ -12,3 +12,16 @@ export type AttendanceRecordPayload = {
   status: string;
   recorded_by?: string; // Menyimpan user_id guru yang mencatat
 };
+
+export type TenantSettings = {
+  school_name: string;
+  school_days: number; // 5 atau 6
+};
+
+export type SchoolHoliday = {
+  holiday_id: string;
+  tenant_id: string;
+  start_date: string;
+  end_date: string;
+  description: string;
+};

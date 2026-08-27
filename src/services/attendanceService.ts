@@ -50,31 +50,80 @@ export async function fetchStudentsByTenant(tenantId: string, classId: string): 
   }));
 }
 
-export async function saveAttendanceRecords(
-  tenantId: string,
-  students: Student[],
-  userId: string
-): Promise<boolean> {
-  const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
-
-  const records: AttendanceRecordPayload[] = students.map((student) => ({
+export async function saveAttendanceRecords(tenantId: string, students: Student[], userId: string, targetDate: string) {
+  const records = students.map((student) => ({
     tenant_id: tenantId,
     student_id: student.student_id,
-    date: today,
+    date: targetDate, // Menggunakan tanggal yang dipilih di date picker
     status: student.status || 'H',
     recorded_by: userId,
   }));
 
   const { error } = await supabase
     .from('attendance')
-    .upsert(records, { 
-      onConflict: 'student_id,date' 
-    });
+    .upsert(records, { onConflict: 'tenant_id,student_id,date' });
 
   if (error) {
-    console.error('Gagal menyimpan absensi:', error.message);
-    throw error;
+    throw new Error(error.message);
   }
+}
 
-  return true;
+export async function fetchTodayAttendance(tenantId: string, classId: string): Promise<Record<string, string> | null> {
+  const today = new Date().toISOString().split('T')[0];
+
+  // Ambil data siswa di kelas ini terlebih dahulu untuk mendapatkan student_id
+  const { data: students, error: studentError } = await supabase
+    .from('students')
+    .select('student_id')
+    .eq('tenant_id', tenantId)
+    .eq('class_id', classId);
+
+  if (studentError || !students || students.length === 0) return null;
+
+  const studentIds = students.map((s) => s.student_id);
+
+  // Ambil data attendance berdasarkan student_id dan tanggal hari ini
+  const { data: attendanceData, error: attError } = await supabase
+    .from('attendance')
+    .select('student_id, status')
+    .eq('date', today)
+    .in('student_id', studentIds);
+
+  if (attError || !attendanceData || attendanceData.length === 0) return null;
+
+  // Ubah ke bentuk Map/Record: { [student_id]: status }
+  const statusMap: Record<string, string> = {};
+  attendanceData.forEach((item) => {
+    statusMap[item.student_id] = item.status;
+  });
+
+  return statusMap;
+}
+
+// Ubah nama/fungsi agar dinamis menerima tanggal
+export async function fetchAttendanceByDate(tenantId: string, classId: string, targetDate: string): Promise<Record<string, string> | null> {
+  const { data: students, error: studentError } = await supabase
+    .from('students')
+    .select('student_id')
+    .eq('tenant_id', tenantId)
+    .eq('class_id', classId);
+
+  if (studentError || !students || students.length === 0) return null;
+
+  const studentIds = students.map((s) => s.student_id);
+
+  const { data: attendanceData, error: attError } = await supabase
+    .from('attendance')
+    .select('student_id, status')
+    .eq('date', targetDate) // Cek berdasarkan tanggal target
+    .in('student_id', studentIds);
+
+  if (attError || !attendanceData || attendanceData.length === 0) return null;
+
+  const statusMap: Record<string, string> = {};
+  attendanceData.forEach((item) => {
+    statusMap[item.student_id] = item.status;
+  });
+
+  return statusMap;
 }

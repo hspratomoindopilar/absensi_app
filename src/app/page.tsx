@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { Student } from '@/types/database';
-import { fetchSchoolAndClassInfo, fetchStudentsByTenant, saveAttendanceRecords } from '@/services/attendanceService';
+import { fetchSchoolAndClassInfo, fetchStudentsByTenant, fetchTodayAttendance, saveAttendanceRecords } from '@/services/attendanceService';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 
@@ -14,7 +14,14 @@ export default function TeacherAttendanceDashboard() {
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  
+  const [statusFilter, setStatusFilter] = useState<string>('ALL'); // 'ALL', 'H', 'S', 'I', 'A'
+  const todayString = new Date().toISOString().split('T')[0];
+  const [selectedDate, setSelectedDate] = useState(todayString);
+
+  // State tambahan untuk kontrol status simpan & edit
+  const [isAlreadySaved, setIsAlreadySaved] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
+
   // State untuk info session & tenant
   const [sessionData, setSessionData] = useState({
     userId: '',
@@ -31,14 +38,14 @@ export default function TeacherAttendanceDashboard() {
     async function initDashboard() {
       try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
+
         if (sessionError || !session || !session.user.email) {
           router.replace('/login');
           return;
         }
 
         const info = await fetchSchoolAndClassInfo(session.user.email);
-        
+
         if (!info || !info.tenantId || !info.classId || !info.userId) {
           console.error('Data tenant, kelas, atau user tidak ditemukan.');
           return;
@@ -53,8 +60,26 @@ export default function TeacherAttendanceDashboard() {
           teacherName: info.teacherName,
         });
 
+        // 1. Ambil data siswa dasar
         const dataSiswa = await fetchStudentsByTenant(info.tenantId, info.classId);
-        setStudents(dataSiswa);
+
+        // 2. Cek apakah absensi hari ini sudah pernah disimpan di database
+        const todayStatusMap = await fetchTodayAttendance(info.tenantId, info.classId);
+
+        if (todayStatusMap) {
+          // Jika sudah ada, gabungkan statusnya dan kunci form secara default
+          const mergedStudents = dataSiswa.map((s) => ({
+            ...s,
+            status: todayStatusMap[s.student_id] || 'H',
+          }));
+          setStudents(mergedStudents);
+          setIsAlreadySaved(true);
+          setIsLocked(true);
+        } else {
+          setStudents(dataSiswa);
+          setIsAlreadySaved(false);
+          setIsLocked(false);
+        }
       } catch (err) {
         console.error('Gagal memuat dashboard:', err);
       } finally {
@@ -71,6 +96,7 @@ export default function TeacherAttendanceDashboard() {
   };
 
   const handleStatusChange = (studentId: string, status: string) => {
+    if (isLocked) return; // Abaikan perubahan jika form sedang dikunci
     setStudents((prev) =>
       prev.map((s) => (s.student_id === studentId ? { ...s, status } : s))
     );
@@ -83,9 +109,11 @@ export default function TeacherAttendanceDashboard() {
       setSaving(true);
       setSuccessMessage('');
 
-      await saveAttendanceRecords(sessionData.tenantId, students, sessionData.userId);
+      await saveAttendanceRecords(sessionData.tenantId, students, sessionData.userId, selectedDate);
 
-      setSuccessMessage('Berhasil! Absensi hari ini telah disimpan ke database.');
+      setIsAlreadySaved(true);
+      setIsLocked(true); // Kunci kembali form setelah berhasil simpan
+      setSuccessMessage('Berhasil! Absensi hari ini telah disimpan.');
       setTimeout(() => setSuccessMessage(''), 4000);
     } catch (err: any) {
       alert('Gagal menyimpan absensi: ' + (err.message || 'Terjadi kesalahan sistem'));
@@ -94,9 +122,11 @@ export default function TeacherAttendanceDashboard() {
     }
   };
 
-  const filteredStudents = students.filter((s) =>
-    s.full_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredStudents = students.filter((s) => {
+    const matchesSearch = s.full_name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'ALL' || s.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const countStatus = (status: string) =>
     students.filter((s) => s.status === status).length;
@@ -113,99 +143,165 @@ export default function TeacherAttendanceDashboard() {
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col">
       {/* ================= STICKY TOP CONTAINER ================= */}
       <div className="sticky top-0 z-30 bg-slate-50 shadow-sm">
-        <Header 
+        <Header
           schoolName={sessionData.schoolName}
           className={sessionData.className}
           teacherName={sessionData.teacherName}
-          onLogout={handleLogout} 
+          onLogout={handleLogout}
         />
 
-        <div className="p-4 max-w-md mx-auto space-y-3 pb-3">
+        <div className="px-4 pt-2.5 pb-2 max-w-md mx-auto space-y-2">
+          {/* Banner Status Tersimpan & Tombol Ubah/Edit */}
+          {isAlreadySaved && (
+            <div className={`p-2.5 rounded-xl border text-xs flex items-center justify-between shadow-sm transition ${isLocked ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'
+              }`}>
+              <div className="flex items-center gap-2">
+                <span>{isLocked ? '🔒' : '🔓'}</span>
+                <div>
+                  <p className="font-bold leading-tight">{isLocked ? 'Absensi Hari Ini Tersimpan' : 'Mode Edit Aktif'}</p>
+                  <p className="text-[10px] opacity-80">{isLocked ? 'Data terkunci.' : 'Silakan koreksi & simpan.'}</p>
+                </div>
+              </div>
+              {isLocked && (
+                <button
+                  onClick={() => setIsLocked(false)}
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-2.5 py-1 rounded-lg text-[11px] transition shadow-sm"
+                >
+                  Ubah
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Notifikasi Sukses */}
           {successMessage && (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium rounded-xl shadow-sm text-center animate-bounce">
+            <div className="p-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium rounded-xl shadow-sm text-center">
               ✅ {successMessage}
             </div>
           )}
 
-          {/* Statistik Hari Ini */}
-          <div className="app-card p-3.5 bg-white shadow-sm">
-            <div className="flex justify-between items-center mb-2.5">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Status Hari Ini</span>
-              <span className="text-[11px] bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full font-semibold">
-                📅 {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}
+          {/* Statistik Hari Ini (Compact & Clickable Filter) */}
+          {/* Statistik Hari Ini & Date Picker */}
+          <div className="app-card p-2.5 bg-white shadow-sm">
+            <div className="flex justify-between items-center mb-1.5">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                {statusFilter === 'ALL' ? 'Ringkasan Absensi' : `Filter: ${statusFilter}`}
               </span>
+              
+              {/* Date Picker Compact */}
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-slate-400">📅</span>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="bg-slate-100 text-slate-700 text-[10px] font-semibold px-2 py-0.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-2 text-center">
-              <div className="bg-emerald-50 p-2 rounded-xl border border-emerald-100">
-                <span className="block text-[9px] uppercase font-bold text-emerald-600">Hadir</span>
-                <span className="font-black text-emerald-700 text-base">{countStatus('H')}</span>
+            <div className="grid grid-cols-4 gap-1.5 text-center">
+              {/* Hadir */}
+              <div
+                onClick={() => setStatusFilter(statusFilter === 'H' ? 'ALL' : 'H')}
+                className={`p-1.5 rounded-lg border cursor-pointer transition ${statusFilter === 'H' ? 'bg-emerald-600 text-white ring-2 ring-emerald-300' : 'bg-emerald-50 border-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                  }`}
+              >
+                <span className={`block text-[8px] uppercase font-bold ${statusFilter === 'H' ? 'text-white' : 'text-emerald-600'}`}>Hadir</span>
+                <span className="font-black text-sm">{countStatus('H')}</span>
               </div>
-              <div className="bg-amber-50 p-2 rounded-xl border border-amber-100">
-                <span className="block text-[9px] uppercase font-bold text-amber-600">Sakit</span>
-                <span className="font-black text-amber-700 text-base">{countStatus('S')}</span>
+
+              {/* Sakit */}
+              <div
+                onClick={() => setStatusFilter(statusFilter === 'S' ? 'ALL' : 'S')}
+                className={`p-1.5 rounded-lg border cursor-pointer transition ${statusFilter === 'S' ? 'bg-amber-500 text-white ring-2 ring-amber-300' : 'bg-amber-50 border-amber-100 text-amber-700 hover:bg-amber-100'
+                  }`}
+              >
+                <span className={`block text-[8px] uppercase font-bold ${statusFilter === 'S' ? 'text-white' : 'text-amber-600'}`}>Sakit</span>
+                <span className="font-black text-sm">{countStatus('S')}</span>
               </div>
-              <div className="bg-sky-50 p-2 rounded-xl border border-sky-100">
-                <span className="block text-[9px] uppercase font-bold text-sky-600">Izin</span>
-                <span className="font-black text-sky-700 text-base">{countStatus('I')}</span>
+
+              {/* Izin */}
+              <div
+                onClick={() => setStatusFilter(statusFilter === 'I' ? 'ALL' : 'I')}
+                className={`p-1.5 rounded-lg border cursor-pointer transition ${statusFilter === 'I' ? 'bg-sky-500 text-white ring-2 ring-sky-300' : 'bg-sky-50 border-sky-100 text-sky-700 hover:bg-sky-100'
+                  }`}
+              >
+                <span className={`block text-[8px] uppercase font-bold ${statusFilter === 'I' ? 'text-white' : 'text-sky-600'}`}>Izin</span>
+                <span className="font-black text-sm">{countStatus('I')}</span>
               </div>
-              <div className="bg-rose-50 p-2 rounded-xl border border-rose-100">
-                <span className="block text-[9px] uppercase font-bold text-rose-600">Alpa</span>
-                <span className="font-black text-rose-700 text-base">{countStatus('A')}</span>
+
+              {/* Alpa */}
+              <div
+                onClick={() => setStatusFilter(statusFilter === 'A' ? 'ALL' : 'A')}
+                className={`p-1.5 rounded-lg border cursor-pointer transition ${statusFilter === 'A' ? 'bg-rose-600 text-white ring-2 ring-rose-300' : 'bg-rose-50 border-rose-100 text-rose-700 hover:bg-rose-100'
+                  }`}
+              >
+                <span className={`block text-[8px] uppercase font-bold ${statusFilter === 'A' ? 'text-white' : 'text-rose-600'}`}>Alpa</span>
+                <span className="font-black text-sm">{countStatus('A')}</span>
               </div>
             </div>
           </div>
 
-          {/* Search Bar */}
+          {/* Search Bar Compact */}
           <div>
             <input
               type="text"
               placeholder="🔍 Cari nama siswa..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+              className="w-full bg-white px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
             />
           </div>
 
-          {/* Judul & Counter Daftar Siswa (Ikut Sticky di Bawah Search) */}
-          <div className="flex justify-between items-center px-1 pt-1">
-            <h2 className="font-bold text-xs uppercase tracking-wider text-slate-500">
-              Daftar Siswa {sessionData.className}
+          {/* Judul & Counter Daftar Siswa */}
+          <div className="flex justify-between items-center px-1 pt-0.5">
+            <h2 className="font-bold text-[11px] uppercase tracking-wider text-slate-500">
+              {statusFilter === 'ALL' ? `Daftar Siswa ${sessionData.className}` : `Filter: Status [${statusFilter}]`}
             </h2>
-            <span className="text-xs text-slate-400">{filteredStudents.length} Siswa</span>
+            <div className="flex items-center gap-2">
+              {statusFilter !== 'ALL' && (
+                <button
+                  onClick={() => setStatusFilter('ALL')}
+                  className="text-[9px] bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 py-0.5 rounded font-bold transition"
+                >
+                  Reset All
+                </button>
+              )}
+              <span className="text-[11px] text-slate-400">{filteredStudents.length} Siswa</span>
+            </div>
           </div>
         </div>
       </div>
       {/* ================= END STICKY TOP ================= */}
 
-      {/* ================= SCROLLABLE CONTENT (MURNI CARD SISWA) ================= */}
-      <main className="p-4 max-w-md mx-auto w-full space-y-3 flex-1 pb-32">
+      {/* ================= SCROLLABLE CONTENT (COMPACT CARDS) ================= */}
+      <main className="px-4 py-2 max-w-md mx-auto w-full space-y-2 flex-1 pb-28">
         {filteredStudents.map((student, index) => (
-          <div key={student.student_id} className="app-card p-3.5 bg-white flex items-center justify-between transition hover:border-blue-300">
+          <div key={student.student_id} className="app-card p-2.5 bg-white flex items-center justify-between transition hover:border-blue-300">
             <div className="pr-2">
-              <span className="text-[10px] font-bold text-slate-400">No. {index + 1}</span>
-              <h3 className="font-bold text-sm text-slate-800 leading-tight">{student.full_name}</h3>
-              <span className="text-[11px] text-slate-400">NIS: {student.nis || '-'}</span>
+              <span className="text-[9px] font-bold text-slate-400">No. {index + 1}</span>
+              <h3 className="font-bold text-xs text-slate-800 leading-tight">{student.full_name}</h3>
+              <span className="text-[10px] text-slate-400">NIS: {student.nis || '-'}</span>
             </div>
 
-            {/* Status Buttons */}
-            <div className="flex gap-1.5 shrink-0">
+            {/* Status Buttons Compact */}
+            <div className="flex gap-1 shrink-0">
               {['H', 'S', 'I', 'A'].map((st) => {
                 const isActive = student.status === st;
                 let activeClass = '';
-                if (st === 'H') activeClass = 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-300';
-                if (st === 'S') activeClass = 'bg-amber-500 text-white shadow-md ring-2 ring-amber-300';
-                if (st === 'I') activeClass = 'bg-sky-500 text-white shadow-md ring-2 ring-sky-300';
-                if (st === 'A') activeClass = 'bg-rose-600 text-white shadow-md ring-2 ring-rose-300';
+                if (st === 'H') activeClass = 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-300';
+                if (st === 'S') activeClass = 'bg-amber-500 text-white shadow-sm ring-1 ring-amber-300';
+                if (st === 'I') activeClass = 'bg-sky-500 text-white shadow-sm ring-1 ring-sky-300';
+                if (st === 'A') activeClass = 'bg-rose-600 text-white shadow-sm ring-1 ring-rose-300';
 
                 return (
                   <button
                     key={st}
                     onClick={() => handleStatusChange(student.student_id, st)}
-                    className={`w-9 h-9 rounded-xl font-bold text-xs transition flex items-center justify-center ${
-                      isActive ? activeClass : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
+                    disabled={isLocked}
+                    className={`w-7 h-7 rounded-lg font-bold text-[11px] transition flex items-center justify-center ${isActive ? activeClass : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      } ${isLocked ? 'opacity-70 cursor-not-allowed' : ''}`}
                   >
                     {st}
                   </button>
@@ -217,20 +313,25 @@ export default function TeacherAttendanceDashboard() {
       </main>
 
       {/* ================= FIXED BOTTOM BUTTON & NAV ================= */}
-      <div className="fixed bottom-16 left-0 right-0 px-4 max-w-md mx-auto z-30">
+      <div className="fixed bottom-14 left-0 right-0 px-4 max-w-md mx-auto z-30">
         <button
           onClick={handleSaveAttendance}
-          disabled={saving || students.length === 0}
-          className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-3.5 px-4 rounded-2xl shadow-xl transition disabled:opacity-50 text-sm tracking-wide flex items-center justify-center gap-2"
+          disabled={saving || students.length === 0 || isLocked}
+          className={`w-full font-bold py-3 px-4 rounded-xl shadow-lg transition text-xs tracking-wide flex items-center justify-center gap-2 ${isLocked
+              ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+              : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white'
+            }`}
         >
           {saving ? (
             <>
-              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-              <span>Menyimpan ke Database...</span>
+              <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              <span>Menyimpan...</span>
             </>
+          ) : isLocked ? (
+            <span>🔒 Absensi Terkunci (Klik "Ubah" di atas)</span>
           ) : (
             <>
-              <span>💾 Simpan Absensi Hari Ini</span>
+              <span>💾 Simpan Perubahan Absensi</span>
             </>
           )}
         </button>

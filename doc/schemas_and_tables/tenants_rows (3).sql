@@ -1,0 +1,1 @@
+INSERT INTO "public"."tenants" ("tenant_id", "school_name", "slug", "created_at") VALUES ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'SDN Ragunan 01', 'sdn-ragunan-01', '2026-08-26 15:24:50.382092+00');

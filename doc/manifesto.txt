@@ -1,0 +1,17 @@
+!MANIFESTO! 
+
+A. Tech-stack
+#   gw mau bekerja dengan framework next.js , vscode, mau pake supabase   + vercel (freetier) + github , pastikan konstruksi kode-kodenya sudah sedari awal dirancang ramah/compatible untuk deploy karena pengalaman sebelumnya di lokal udah bener tapi pas deploy gagal banyak pesan errornya dan jadi harus benahi banyak titik, that is very time consuming and  panic"able"
+
+# Mindset untuk app ini adalah multi user + multi tenant (Saas)
+# PWA - tampilan harus responsive dan rapi
+ 
+B  desain UI/UX
+-  gw mau  desain yg senada antar halaman nantinya mengacu pada pallete warna patokan , klo bisa styling CSSnya  merefer ke satu pintu. 
+
+C. Poin Pengerjaan
+# beri gw per satu langkah pengerjaan klo gw kasih feedbacknya "DONE" baru bisa lanjut ke langkah selanjutnya , kalo HOLD gw masih proses dan masih ada persoalan atau penyesuaian di langkah yg sedang dijalani, jadi belum bisa melangkah ke selanjutnya.
+
+# pola konstruksinya iteratif , perlahan tapi pasti, NAMUN STANDARD-NYA ADALAH SKALA PRODUCTION PROFESIONAL , bukan sekedar buat tes-tes doang,   
+
+Bisa di pahami ?! 

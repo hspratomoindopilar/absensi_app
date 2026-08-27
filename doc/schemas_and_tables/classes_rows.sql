@@ -1,0 +1,1 @@
+INSERT INTO "public"."classes" ("class_id", "tenant_id", "class_name", "academic_year", "created_at") VALUES ('b1ffecc0-0d1c-4fe9-cc7e-7cc0ce491b22', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Kelas 5B', '2026/2027', '2026-08-26 15:24:50.382092+00');

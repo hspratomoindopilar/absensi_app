@@ -1,0 +1,1 @@
+INSERT INTO "public"."users" ("user_id", "tenant_id", "email", "full_name", "role", "created_at") VALUES ('48c7f76d-1229-4cbc-a189-2b74f4c9f235', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'guru.ragunan01@gmail.com', 'Wali Kelas 5B', 'teacher', '2026-08-27 05:19:21.466863+00');

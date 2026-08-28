@@ -3,6 +3,7 @@ export type Student = {
   nis: string;
   full_name: string;
   status?: string; // 'H' | 'S' | 'I' | 'A'
+  gender?: 'L' | 'P';
 };
 
 export type AttendanceRecordPayload = {

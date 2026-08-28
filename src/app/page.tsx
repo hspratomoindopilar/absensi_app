@@ -4,12 +4,12 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { Student } from '@/types/database';
-import { 
-  fetchSchoolAndClassInfo, 
-  fetchStudentsByTenant, 
-  fetchAttendanceByDate, 
-  saveAttendanceRecords, 
-  
+import {
+  fetchSchoolAndClassInfo,
+  fetchStudentsByTenant,
+  fetchAttendanceByDate,
+  saveAttendanceRecords,
+
 } from '@/services/attendanceService';
 import { fetchTenantSettings, fetchSchoolHolidays } from '@/services/settingsService';
 import Header from '@/components/Header';
@@ -22,7 +22,7 @@ export default function TeacherAttendanceDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
-  
+
   const todayString = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(todayString);
 
@@ -225,9 +225,8 @@ export default function TeacherAttendanceDashboard() {
             </div>
           ) : (
             isAlreadySaved && (
-              <div className={`p-2.5 rounded-xl border text-xs flex items-center justify-between shadow-sm transition ${
-                isLocked ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'
-              }`}>
+              <div className={`p-2.5 rounded-xl border text-xs flex items-center justify-between shadow-sm transition ${isLocked ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'
+                }`}>
                 <div className="flex items-center gap-2">
                   <span>{isLocked ? '🔒' : '✏️'}</span>
                   <div>
@@ -259,7 +258,7 @@ export default function TeacherAttendanceDashboard() {
               <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
                 {statusFilter === 'ALL' ? 'Ringkasan Absensi' : `Filter: ${statusFilter}`}
               </span>
-              
+
               <div className="flex items-center gap-1">
                 <span className="text-[10px] text-slate-400">📅</span>
                 <input
@@ -351,7 +350,13 @@ export default function TeacherAttendanceDashboard() {
               <div className="pr-2">
                 <span className="text-[9px] font-bold text-slate-400">No. {index + 1}</span>
                 <h3 className="font-bold text-xs text-slate-800 leading-tight">{student.full_name}</h3>
-                <span className="text-[10px] text-slate-400">NIS: {student.nis || '-'}</span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="text-[10px] text-slate-400">NIS: {student.nis || '-'}</span>
+                  <span className="text-slate-300">•</span>
+                  <span className={`text-[9px] px-1 rounded font-bold ${student.gender === 'P' ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700'}`}>
+                    {student.gender === 'P' ? 'Perempuan' : 'Laki-laki'}
+                  </span>
+                </div>
               </div>
 
               <div className="flex gap-1 shrink-0">
@@ -368,9 +373,8 @@ export default function TeacherAttendanceDashboard() {
                       key={st}
                       onClick={() => handleStatusChange(student.student_id, st)}
                       disabled={isLocked || dayStatus.isHoliday}
-                      className={`w-7 h-7 rounded-lg font-bold text-[11px] transition flex items-center justify-center ${
-                        isActive ? activeClass : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      } ${isLocked || dayStatus.isHoliday ? 'opacity-70 cursor-not-allowed' : ''}`}
+                      className={`w-7 h-7 rounded-lg font-bold text-[11px] transition flex items-center justify-center ${isActive ? activeClass : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        } ${isLocked || dayStatus.isHoliday ? 'opacity-70 cursor-not-allowed' : ''}`}
                     >
                       {st}
                     </button>
@@ -387,11 +391,10 @@ export default function TeacherAttendanceDashboard() {
           <button
             onClick={handleSaveAttendance}
             disabled={saving || students.length === 0 || isLocked}
-            className={`w-full font-bold py-3 px-4 rounded-xl shadow-lg transition text-xs tracking-wide flex items-center justify-center gap-2 ${
-              isLocked
-                ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
-                : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white'
-            }`}
+            className={`w-full font-bold py-3 px-4 rounded-xl shadow-lg transition text-xs tracking-wide flex items-center justify-center gap-2 ${isLocked
+              ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+              : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white'
+              }`}
           >
             {saving ? (
               <>

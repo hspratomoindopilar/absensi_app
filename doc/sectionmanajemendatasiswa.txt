@@ -1,0 +1,153 @@
+{/* SECTION 2: Manajemen & Import Siswa (Accordion) */}
+        <div className="app-card bg-white overflow-hidden transition-all">
+          <button
+            type="button"
+            onClick={() => setOpenStudents(!openStudents)}
+            className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-50/80 transition"
+          >
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="font-bold text-xs uppercase tracking-wider text-slate-700">2. Manajemen Data Siswa</h2>
+                <span className="text-[9px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full font-bold border border-slate-200">
+                  {students.length} Siswa
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400 mt-0.5">Tambah siswa manual atau import massal dari Excel.</p>
+            </div>
+            <span className="text-slate-400 font-bold text-xs">{openStudents ? '▲' : '▼'}</span>
+          </button>
+
+          {openStudents && (
+            <div className="px-4 pb-4 pt-1 border-t border-slate-100 space-y-3">
+              {/* Form Tambah Siswa Manual */}
+              {/* Form Tambah Siswa Manual */}
+              <form onSubmit={handleAddStudent} className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-200 mt-2">
+                <h3 className="text-[11px] font-bold text-slate-700">➕ Tambah Siswa Baru</h3>
+                <div className="grid grid-cols-4 gap-2">
+                  <input
+                    type="text"
+                    placeholder="No. NIS"
+                    value={newNis}
+                    onChange={(e) => setNewNis(e.target.value)}
+                    className="bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Nama Lengkap Siswa"
+                    value={newFullName}
+                    onChange={(e) => setNewFullName(e.target.value)}
+                    className="col-span-2 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                  <select
+                    value={newGender}
+                    onChange={(e) => setNewGender(e.target.value as 'L' | 'P')}
+                    className="bg-white px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="L">L</option>
+                    <option value="P">P</option>
+                  </select>
+                </div>
+                <button
+                  type="submit"
+                  disabled={savingStudent}
+                  className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition"
+                >
+                  {savingStudent ? 'Menyimpan...' : 'Simpan Siswa'}
+                </button>
+              </form>
+
+              {/* Form Import Massal */}
+              <form onSubmit={handleBulkImport} className="space-y-2 p-3 bg-blue-50/50 rounded-xl border border-blue-100">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-[11px] font-bold text-blue-800">📥 Import Massal dari Excel</h3>
+                  <span className="text-[9px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded font-medium">Format: NIS [Tab/Koma] Nama</span>
+                </div>
+                <textarea
+                  rows={3}
+                  placeholder="Contoh:&#10;1001, Budi Santoso&#10;1002, Siti Aminah"
+                  value={bulkText}
+                  onChange={(e) => setBulkText(e.target.value)}
+                  className="w-full bg-white px-2.5 py-1.5 rounded-lg border border-blue-200 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+                <p className="text-[9px] text-slate-500">
+                  * Tips: Anda bisa langsung blok tabel data siswa di Excel, lalu *Paste* di kotak di atas.
+                </p>
+                <button
+                  type="submit"
+                  disabled={isImporting}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition shadow-sm"
+                >
+                  {isImporting ? 'Mengimpor Data...' : 'Proses Import / Update Massal'}
+                </button>
+              </form>
+
+              {/* Daftar Siswa Terdaftar */}
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                <h3 className="text-[11px] font-bold text-slate-500">Daftar Siswa Kelas ({students.length})</h3>
+
+                {students.length === 0 ? (
+                  <p className="text-[10px] text-slate-400 italic text-center py-3 bg-slate-50 rounded-xl">Belum ada data siswa di kelas ini.</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                    {students.map((s, idx) => (
+                      <div key={s.student_id} className="p-2 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+                        {editingStudentId === s.student_id ? (
+                          <div className="flex items-center gap-1.5 flex-1 mr-2">
+                            <input
+                              type="text"
+                              value={editNis}
+                              onChange={(e) => setEditNis(e.target.value)}
+                              className="w-16 bg-white px-2 py-1 rounded border border-slate-300 text-xs"
+                            />
+                            <input
+                              type="text"
+                              value={editFullName}
+                              onChange={(e) => setEditFullName(e.target.value)}
+                              className="flex-1 bg-white px-2 py-1 rounded border border-slate-300 text-xs"
+                            />
+                            <button
+                              onClick={() => handleSaveEditStudent(s.student_id)}
+                              className="bg-emerald-600 text-white font-bold px-2 py-1 rounded text-[10px]"
+                            >
+                              Simpan
+                            </button>
+                            <button
+                              onClick={() => setEditingStudentId(null)}
+                              className="bg-slate-300 text-slate-700 px-2 py-1 rounded text-[10px]"
+                            >
+                              Batal
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-slate-400 font-bold w-5">{idx + 1}.</span>
+                              <div>
+                                <p className="font-bold text-slate-800 leading-tight">{s.full_name}</p>
+                                <p className="text-[10px] text-slate-400">NIS: {s.nis}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => startEditStudent(s)}
+                                className="text-blue-600 hover:text-blue-800 font-bold text-[10px] bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-lg border border-blue-200 transition"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteStudent(s.student_id)}
+                                className="text-rose-500 hover:text-rose-700 font-bold text-[10px] bg-rose-50 hover:bg-rose-100 px-2 py-1 rounded-lg border border-rose-200 transition"
+                              >
+                                Hapus
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>

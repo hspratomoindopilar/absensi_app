@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { 
-  fetchSchoolAndClassInfo, 
-  fetchTenantSettings, 
-  updateTenantSchoolDays, 
-  fetchSchoolHolidays, 
-  addSchoolHoliday, 
+import {
+  fetchSchoolAndClassInfo,
+  fetchTenantSettings,
+  updateTenantSchoolDays,
+  fetchSchoolHolidays,
+  addSchoolHoliday,
   deleteSchoolHoliday,
   fetchStudentsManagement,
   addSingleStudent,
@@ -24,11 +24,11 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
   const [savingHoliday, setSavingHoliday] = useState(false);
-  
+
   const [tenantId, setTenantId] = useState('');
   const [classId, setClassId] = useState('');
   const [schoolDays, setSchoolDays] = useState<number>(5);
-  
+
   // State untuk Toggle / Accordion Section
   const [openDays, setOpenDays] = useState(false);
   const [openStudents, setOpenStudents] = useState(true); // Default terbuka untuk manajemen siswa
@@ -45,6 +45,8 @@ export default function SettingsPage() {
   const [newNis, setNewNis] = useState('');
   const [newFullName, setNewFullName] = useState('');
   const [savingStudent, setSavingStudent] = useState(false);
+  const [newGender, setNewGender] = useState<'L' | 'P'>('L');
+  const [editGender, setEditGender] = useState<'L' | 'P'>('L');
 
   // State untuk Import Massal
   const [bulkText, setBulkText] = useState('');
@@ -178,7 +180,7 @@ export default function SettingsPage() {
       setErrorMsg('');
       setSuccessMsg('');
 
-      await addSingleStudent(tenantId, classId, newNis.trim(), newFullName.trim());
+      await addSingleStudent(tenantId, classId, newNis.trim(), newFullName.trim(), newGender);
       const updatedStudents = await fetchStudentsManagement(tenantId, classId);
       setStudents(updatedStudents);
 
@@ -224,7 +226,7 @@ export default function SettingsPage() {
 
     try {
       setErrorMsg('');
-      await updateStudent(studentId, editNis.trim(), editFullName.trim());
+      await updateStudent(studentId, editNis.trim(), editFullName.trim(), editGender);
       const updatedStudents = await fetchStudentsManagement(tenantId, classId);
       setStudents(updatedStudents);
       setEditingStudentId(null);
@@ -249,7 +251,7 @@ export default function SettingsPage() {
       setSuccessMsg('');
 
       const lines = bulkText.split('\n');
-      const parsedStudents: { nis: string; full_name: string }[] = [];
+      const parsedStudents: { nis: string; full_name: string; gender?: 'L' | 'P' }[] = [];
 
       lines.forEach((line) => {
         if (!line.trim()) return;
@@ -257,8 +259,12 @@ export default function SettingsPage() {
         if (parts.length >= 2) {
           const nis = parts[0].trim();
           const full_name = parts[1].trim();
+          // Ambil kolom ke-3 jika ada, lalu normalisasi jadi 'L' atau 'P'
+          const rawGender = parts[2] ? parts[2].trim().toUpperCase() : 'L';
+          const gender: 'L' | 'P' = rawGender === 'P' ? 'P' : 'L';
+
           if (nis && full_name) {
-            parsedStudents.push({ nis, full_name });
+            parsedStudents.push({ nis, full_name, gender });
           }
         }
       });
@@ -342,11 +348,10 @@ export default function SettingsPage() {
                 <button
                   onClick={() => handleUpdateSchoolDays(5)}
                   disabled={savingSettings}
-                  className={`p-3 rounded-xl border text-left transition flex flex-col justify-between ${
-                    schoolDays === 5 
-                      ? 'bg-blue-50 border-blue-300 ring-1 ring-blue-300 text-blue-800 font-bold' 
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 font-medium'
-                  }`}
+                  className={`p-3 rounded-xl border text-left transition flex flex-col justify-between ${schoolDays === 5
+                    ? 'bg-blue-50 border-blue-300 ring-1 ring-blue-300 text-blue-800 font-bold'
+                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 font-medium'
+                    }`}
                 >
                   <div className="flex justify-between items-center w-full mb-2">
                     <span className="text-base">📅</span>
@@ -363,11 +368,10 @@ export default function SettingsPage() {
                 <button
                   onClick={() => handleUpdateSchoolDays(6)}
                   disabled={savingSettings}
-                  className={`p-3 rounded-xl border text-left transition flex flex-col justify-between ${
-                    schoolDays === 6 
-                      ? 'bg-blue-50 border-blue-300 ring-1 ring-blue-300 text-blue-800 font-bold' 
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 font-medium'
-                  }`}
+                  className={`p-3 rounded-xl border text-left transition flex flex-col justify-between ${schoolDays === 6
+                    ? 'bg-blue-50 border-blue-300 ring-1 ring-blue-300 text-blue-800 font-bold'
+                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 font-medium'
+                    }`}
                 >
                   <div className="flex justify-between items-center w-full mb-2">
                     <span className="text-base">📅</span>
@@ -410,7 +414,7 @@ export default function SettingsPage() {
               {/* Form Tambah Siswa Manual */}
               <form onSubmit={handleAddStudent} className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-200 mt-2">
                 <h3 className="text-[11px] font-bold text-slate-700">➕ Tambah Siswa Baru</h3>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   <input
                     type="text"
                     placeholder="No. NIS"
@@ -425,6 +429,14 @@ export default function SettingsPage() {
                     onChange={(e) => setNewFullName(e.target.value)}
                     className="col-span-2 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
+                  <select
+                    value={newGender}
+                    onChange={(e) => setNewGender(e.target.value as 'L' | 'P')}
+                    className="bg-white px-2 py-1.5 rounded-lg border border-slate-200 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="L">L</option>
+                    <option value="P">P</option>
+                  </select>
                 </div>
                 <button
                   type="submit"
@@ -439,17 +451,17 @@ export default function SettingsPage() {
               <form onSubmit={handleBulkImport} className="space-y-2 p-3 bg-blue-50/50 rounded-xl border border-blue-100">
                 <div className="flex justify-between items-center">
                   <h3 className="text-[11px] font-bold text-blue-800">📥 Import Massal dari Excel</h3>
-                  <span className="text-[9px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded font-medium">Format: NIS [Tab/Koma] Nama</span>
+                  <span className="text-[9px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded font-medium">Format: NIS [Tab/Koma] Nama [Tab/Koma] L/P</span>
                 </div>
                 <textarea
                   rows={3}
-                  placeholder="Contoh:&#10;1001, Budi Santoso&#10;1002, Siti Aminah"
+                  placeholder="Contoh:&#10;1001, Budi Santoso, L&#10;1002, Siti Aminah, P"
                   value={bulkText}
                   onChange={(e) => setBulkText(e.target.value)}
                   className="w-full bg-white px-2.5 py-1.5 rounded-lg border border-blue-200 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
                 <p className="text-[9px] text-slate-500">
-                  * Tips: Anda bisa langsung blok tabel data siswa di Excel, lalu *Paste* di kotak di atas.
+                  * Tips: Anda bisa langsung blok tabel data siswa (NIS, Nama, Gender) di Excel, lalu *Paste* di kotak di atas.
                 </p>
                 <button
                   type="submit"
@@ -463,7 +475,7 @@ export default function SettingsPage() {
               {/* Daftar Siswa Terdaftar */}
               <div className="pt-2 border-t border-slate-100 space-y-2">
                 <h3 className="text-[11px] font-bold text-slate-500">Daftar Siswa Kelas ({students.length})</h3>
-                
+
                 {students.length === 0 ? (
                   <p className="text-[10px] text-slate-400 italic text-center py-3 bg-slate-50 rounded-xl">Belum ada data siswa di kelas ini.</p>
                 ) : (
@@ -476,7 +488,7 @@ export default function SettingsPage() {
                               type="text"
                               value={editNis}
                               onChange={(e) => setEditNis(e.target.value)}
-                              className="w-16 bg-white px-2 py-1 rounded border border-slate-300 text-xs"
+                              className="w-14 bg-white px-2 py-1 rounded border border-slate-300 text-xs"
                             />
                             <input
                               type="text"
@@ -484,6 +496,14 @@ export default function SettingsPage() {
                               onChange={(e) => setEditFullName(e.target.value)}
                               className="flex-1 bg-white px-2 py-1 rounded border border-slate-300 text-xs"
                             />
+                            <select
+                              value={editGender}
+                              onChange={(e) => setEditGender(e.target.value as 'L' | 'P')}
+                              className="bg-white px-1.5 py-1 rounded border border-slate-300 text-xs font-bold"
+                            >
+                              <option value="L">L</option>
+                              <option value="P">P</option>
+                            </select>
                             <button
                               onClick={() => handleSaveEditStudent(s.student_id)}
                               className="bg-emerald-600 text-white font-bold px-2 py-1 rounded text-[10px]"
@@ -502,7 +522,12 @@ export default function SettingsPage() {
                             <div className="flex items-center gap-2">
                               <span className="text-[10px] text-slate-400 font-bold w-5">{idx + 1}.</span>
                               <div>
-                                <p className="font-bold text-slate-800 leading-tight">{s.full_name}</p>
+                                <div className="flex items-center gap-1.5">
+                                  <p className="font-bold text-slate-800 leading-tight">{s.full_name}</p>
+                                  <span className={`text-[9px] px-1 rounded font-bold ${s.gender === 'P' ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700'}`}>
+                                    {s.gender || 'L'}
+                                  </span>
+                                </div>
                                 <p className="text-[10px] text-slate-400">NIS: {s.nis}</p>
                               </div>
                             </div>
@@ -597,7 +622,7 @@ export default function SettingsPage() {
               {/* List Daftar Hari Libur Tersimpan */}
               <div className="pt-2 border-t border-slate-100 space-y-2">
                 <h3 className="text-[11px] font-bold text-slate-500">Daftar Libur Terdaftar ({holidays.length})</h3>
-                
+
                 {holidays.length === 0 ? (
                   <p className="text-[10px] text-slate-400 italic text-center py-3 bg-slate-50 rounded-xl">Belum ada kalender libur yang ditambahkan.</p>
                 ) : (

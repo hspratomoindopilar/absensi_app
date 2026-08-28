@@ -38,9 +38,10 @@ export async function fetchSchoolAndClassInfo(userEmail: string) {
 export async function fetchStudentsByTenant(tenantId: string, classId: string): Promise<Student[]> {
   const { data, error } = await supabase
     .from('students')
-    .select('student_id, nis, full_name')
+    .select('student_id, nis, full_name, gender')
     .eq('tenant_id', tenantId)
-    .eq('class_id', classId);
+    .eq('class_id', classId)
+    .order('full_name', { ascending: true });
 
   if (error) throw error;
 

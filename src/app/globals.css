@@ -36,3 +36,38 @@
   border-radius: 1rem;
   box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
 }
+
+@media print {
+  /* Sembunyikan semua elemen navigasi, header, footer, dan menu bawah/pop-up */
+  header, 
+  nav, 
+  footer, 
+  .no-print,
+  button,
+  input,
+  select,
+  div[class*="fixed"] {
+    display: none !important;
+  }
+
+  /* Pastikan background putih bersih dan teks hitam untuk cetakan */
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+
+  /* Lebarkan kontainer laporan secara penuh */
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Sesuaikan tampilan kartu siswa agar ramah cetak kertas */
+  .app-card {
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    margin-bottom: 8px !important;
+  }
+}

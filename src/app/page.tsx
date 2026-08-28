@@ -24,12 +24,18 @@ export default function TeacherAttendanceDashboard() {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
   const todayString = new Date().toISOString().split('T')[0];
+  
+  // State sementara untuk input date picker agar tidak langsung menutup picker saat ganti bulan
+  const [tempDate, setTempDate] = useState(todayString);
+  
+  // State final yang benar-benar memicu fetch data absensi
   const [selectedDate, setSelectedDate] = useState(todayString);
 
   const [isAlreadySaved, setIsAlreadySaved] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
 
   // State validasi hari libur / minggu / efektif
+  
   const [dayStatus, setDayStatus] = useState<{
     isHoliday: boolean;
     holidayName: string;
@@ -189,8 +195,10 @@ export default function TeacherAttendanceDashboard() {
     return matchesSearch && matchesStatus;
   });
 
-  const countStatus = (status: string) =>
-    students.filter((s) => s.status === status).length;
+  const countStatus = (status: string) => {
+    if (dayStatus.isHoliday) return 0; // Jika libur, paksa jadi 0
+    return students.filter((s) => s.status === status).length;
+  };
 
   if (loading) {
     return (
@@ -263,10 +271,16 @@ export default function TeacherAttendanceDashboard() {
                 <span className="text-[10px] text-slate-400">📅</span>
                 <input
                   type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
+                  value={tempDate}
+                  onChange={(e) => setTempDate(e.target.value)}
                   className="bg-slate-100 text-slate-700 text-[10px] font-semibold px-2 py-0.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
+                <button
+                  onClick={() => setSelectedDate(tempDate)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-2 py-0.5 rounded-lg transition shadow-sm"
+                >
+                  Pilih
+                </button>
               </div>
             </div>
 

@@ -1,0 +1,13 @@
+eksisting kita sudah punya :
+src\app\login\page.tsx
+src\app\page.tsx
+src\components\BottomNav.tsx
+src\components\Header.tsx
+src\lib\supabase.ts
+src\services\attendanceService.ts
+src\types\database.ts
+src\app\globals.css
+src\services\rekapService.ts
+src\services\settingsService.ts
+src\app\rekap\page.tsx
+src\app\settings\page.tsx

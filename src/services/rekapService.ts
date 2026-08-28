@@ -4,6 +4,7 @@ export type MonthlyAttendanceSummary = {
   student_id: string;
   nis: string;
   full_name: string;
+  gender: string; // Tambahan field gender
   total_h: number;
   total_s: number;
   total_i: number;
@@ -18,10 +19,10 @@ export async function fetchMonthlyAttendanceReport(
   year: number, 
   month: number
 ): Promise<MonthlyAttendanceSummary[]> {
-  // 1. Ambil semua siswa di kelas tersebut (diurutkan berdasarkan nama)
+  // 1. Ambil semua siswa di kelas tersebut (termasuk gender, diurutkan berdasarkan nama)
   const { data: students, error: studentError } = await supabase
     .from('students')
-    .select('student_id, nis, full_name')
+    .select('student_id, nis, full_name, gender')
     .eq('tenant_id', tenantId)
     .eq('class_id', classId)
     .order('full_name', { ascending: true });
@@ -66,6 +67,67 @@ export async function fetchMonthlyAttendanceReport(
       student_id: s.student_id,
       nis: s.nis || '-',
       full_name: s.full_name,
+      gender: s.gender || 'L',
+      total_h: counts.H,
+      total_s: counts.S,
+      total_i: counts.I,
+      total_a: counts.A,
+      total_presence: counts.H + counts.S + counts.I + counts.A,
+    };
+  });
+}
+
+// Fungsi baru untuk mengambil rekapitulasi berdasarkan rentang tanggal kustom
+export async function fetchCustomRangeAttendanceReport(
+  tenantId: string, 
+  classId: string, 
+  startDate: string, 
+  endDate: string
+): Promise<MonthlyAttendanceSummary[]> {
+  // 1. Ambil semua siswa di kelas tersebut
+  const { data: students, error: studentError } = await supabase
+    .from('students')
+    .select('student_id, nis, full_name, gender')
+    .eq('tenant_id', tenantId)
+    .eq('class_id', classId)
+    .order('full_name', { ascending: true });
+
+  if (studentError || !students) throw studentError;
+
+  // 2. Ambil data absensi dalam rentang tanggal kustom
+  const { data: attendanceData, error: attError } = await supabase
+    .from('attendance')
+    .select('student_id, status, date')
+    .eq('tenant_id', tenantId)
+    .gte('date', startDate)
+    .lte('date', endDate);
+
+  if (attError) throw attError;
+
+  // 3. Petakan dan hitung akumulasi per siswa
+  const summaryMap: Record<string, { H: number; S: number; I: number; A: number }> = {};
+  
+  students.forEach((s) => {
+    summaryMap[s.student_id] = { H: 0, S: 0, I: 0, A: 0 };
+  });
+
+  (attendanceData || []).forEach((record) => {
+    if (summaryMap[record.student_id]) {
+      const st = record.status as 'H' | 'S' | 'I' | 'A';
+      if (summaryMap[record.student_id][st] !== undefined) {
+        summaryMap[record.student_id][st] += 1;
+      }
+    }
+  });
+
+  // 4. Gabungkan ke struktur akhir
+  return students.map((s) => {
+    const counts = summaryMap[s.student_id] || { H: 0, S: 0, I: 0, A: 0 };
+    return {
+      student_id: s.student_id,
+      nis: s.nis || '-',
+      full_name: s.full_name,
+      gender: s.gender || 'L',
       total_h: counts.H,
       total_s: counts.S,
       total_i: counts.I,

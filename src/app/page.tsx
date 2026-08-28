@@ -9,9 +9,9 @@ import {
   fetchStudentsByTenant, 
   fetchAttendanceByDate, 
   saveAttendanceRecords, 
-  fetchSchoolHolidays, 
-  fetchTenantSettings 
+  
 } from '@/services/attendanceService';
+import { fetchTenantSettings, fetchSchoolHolidays } from '@/services/settingsService';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 

@@ -279,7 +279,7 @@ export default function TeacherAttendanceDashboard() {
                   onClick={() => setSelectedDate(tempDate)}
                   className="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-2 py-0.5 rounded-lg transition shadow-sm"
                 >
-                  Pilih
+                  Pilih Tgl
                 </button>
               </div>
             </div>

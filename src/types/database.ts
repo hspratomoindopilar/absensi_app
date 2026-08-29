@@ -37,3 +37,14 @@ export type MonthlyAttendanceSummary = {
   total_a: number;
   total_presence: number;
 };
+
+export type RegisterTenantPayload = {
+  schoolName: string;
+  slug: string;
+  adminName: string;
+  email: string;
+  password: string;
+  className: string;
+  academicYear: string;
+  schoolDays: number;
+};

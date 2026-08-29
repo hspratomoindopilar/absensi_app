@@ -1,0 +1,47 @@
+create table public.tenants (
+  tenant_id uuid not null default gen_random_uuid (),
+  school_name character varying(255) not null,
+  slug character varying(100) not null,
+  created_at timestamp with time zone not null default timezone ('utc'::text, now()),
+  school_days integer not null default 5,
+  constraint tenants_pkey primary key (tenant_id),
+  constraint tenants_slug_key unique (slug)
+) TABLESPACE pg_default;
+=======================================================================
+
+create table public.classes (
+  class_id uuid not null default gen_random_uuid (),
+  tenant_id uuid null,
+  class_name character varying(100) not null,
+  academic_year character varying(50) not null,
+  created_at timestamp with time zone not null default timezone ('utc'::text, now()),
+  constraint classes_pkey primary key (class_id),
+  constraint classes_tenant_id_fkey foreign KEY (tenant_id) references tenants (tenant_id) on delete CASCADE
+) TABLESPACE pg_default;
+
+=======================================================================
+create table public.users (
+  user_id uuid not null default gen_random_uuid (),
+  tenant_id uuid null,
+  email character varying(255) not null,
+  full_name character varying(255) not null,
+  role character varying(50) not null,
+  created_at timestamp with time zone not null default timezone ('utc'::text, now()),
+  constraint users_pkey primary key (user_id),
+  constraint users_email_key unique (email),
+  constraint users_tenant_id_fkey foreign KEY (tenant_id) references tenants (tenant_id) on delete CASCADE,
+  constraint users_role_check check (
+    (
+      (role)::text = any (
+        (
+          array[
+            'admin'::character varying,
+            'teacher'::character varying,
+            'student'::character varying
+          ]
+        )::text[]
+      )
+    )
+  )
+) TABLESPACE pg_default;
+========================================================================

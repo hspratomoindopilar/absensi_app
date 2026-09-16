@@ -1,0 +1,6 @@
+src/
+└── modules/
+    └── fun-learning/
+        ├── components/    <-- Nanti untuk UI Builder & Game Player
+        ├── types/         <-- Nanti untuk tipe data TypeScript schema
+        └── services/      <-- Nanti untuk fungsi API/Supabase

@@ -1,0 +1,46 @@
+/* ==========================================================================
+   STUDENT SCOPED THEME VARIABLES
+   Terisolasi khusus untuk area siswa, aman tidak merusak halaman guru/admin.
+   ========================================================================== */
+
+.student-theme-root {
+  /* --- Tema 1: Purple Night (Default Existing) --- */
+  --bg-main: #2f2b3e;
+  --bg-header: #1e1b29;
+  --bg-card: #3a354a;
+  --border-theme: rgba(122, 78, 140, 0.6);
+  --border-light: rgba(122, 78, 140, 0.4);
+  --text-main: #f1e5c5;
+  --text-muted: #d4b7a0;
+  
+  --accent-gradient: linear-gradient(to right, #7a4e8c, #9333ea);
+  --accent-border: rgba(168, 85, 247, 0.5);
+  --hover-border: rgba(34, 211, 238, 0.8);
+  --hover-shadow: rgba(34, 211, 238, 0.3);
+
+  /* Variabel Badge Konten */
+  --badge-bg: rgba(34, 211, 238, 0.15);
+  --badge-text: #22d3ee;
+  --badge-border: rgba(34, 211, 238, 0.3);
+}
+
+/* --- Tema 2: Emerald Gaming (Alternatif / Toko Koin) --- */
+.student-theme-root[data-theme='emerald'] {
+  --bg-main: #13221d;
+  --bg-header: #0d1714;
+  --bg-card: #1b332b;
+  --border-theme: rgba(52, 211, 153, 0.6);
+  --border-light: rgba(52, 211, 153, 0.4);
+  --text-main: #e2fbe8;
+  --text-muted: #a0d4be;
+  
+  --accent-gradient: linear-gradient(to right, #059669, #10b981);
+  --accent-border: rgba(52, 211, 153, 0.5);
+  --hover-border: rgba(52, 211, 153, 0.8);
+  --hover-shadow: rgba(52, 211, 153, 0.3);
+
+  /* Variabel Badge Konten */
+  --badge-bg: rgba(52, 211, 153, 0.15);
+  --badge-text: #34d399;
+  --badge-border: rgba(52, 211, 153, 0.3);
+}

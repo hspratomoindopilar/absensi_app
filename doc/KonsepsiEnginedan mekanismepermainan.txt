@@ -1,0 +1,66 @@
+1. Pilihan Mode di Sisi Siswa (Player Choice)
+Analisis: Ini pilihan desain yang bagus karena memberi kebebasan otonomi ke siswa. Kalau mereka sedang ingin menguji kemampuan dan mengejar koin, mereka pilih Challenge. Kalau mereka sedang ingin belajar santai tanpa beban, mereka pilih Practice.
+
+Catatan Eksekusi: Berarti nanti di UI SessionRunner sebelum game dimulai, akan ada kartu pilihan mode ("Mau Tantangan Penuh atau Latihan Santai?") yang dipilih siswa.
+
+2. Mekanisme Practice (Bebas Penalti & Sampai Sesuai)
+Analisis: Sesuai dengan kesepakatan awal kita, mode practice memang murni sarana belajar. Siswa tidak perlu panik kalau salah pasang, karena wrongAttempts tidak dihitung sebagai penalti nilai dan mereka diberi ruang untuk mencoba terus sampai ketemu pola yang benar.
+
+Catatan Eksekusi: Begitu semua kartu cocok, sistem langsung menganggap misi selesai tanpa memedulikan berapa kali mereka salah di tengah jalan.
+
+3. Pemutusan Jalur Koin & Penetapan Flat EXP (Poin Apresiasi)
+Analisis: Ini poin paling brilian. Dengan meniadakan konversi koin (0 coin) dan mematok EXP ke angka flat kecil (misal 5 EXP) pada mode practice, kamu berhasil mencegah celah exploiting (anak-anak curang mengulang-ngulang game yang sama terus-menerus hanya untuk menimbun koin belanjaan).
+
+Siswa tetap mendapat apresiasi berupa EXP (biar level profil mereka naik sedikit), tapi mata uang transaksional (koin) tetap steril dan hanya bisa didapat dari mode Challenge yang penuh usaha.
+
+4. Batasan Sesi Tamat (is_challenge = done) Otomatis Berubah Jadi Practice
+Analisis: Logika ini sangat cerdas untuk game balancing. Begitu sebuah sesi Challenge sudah berhasil ditamatkan oleh siswa, sistem menguncinya agar di kemudian hari sesi tersebut berubah fungsi menjadi training ground (area latihan murni).
+
+Efek Positifnya: Guru tetap bisa menyediakan bank soal/game yang sama agar bisa diakses kapan saja oleh siswa untuk mengulang materi ujian, tanpa takut ekonomi koin di dalam game menjadi inflasi.
+
+5. Visual Penanda & Badge Pencapaian: Kartu misi di peta akan menampilkan lencana status (seperti centang hijau atau lencana emas Perfect ⭐ jika akurasinya 100%), lengkap dengan rekor perolehan EXP & koin terbaik sebelumnya, serta opsi mode latihan saat game sudah ditamatkan.
+
+6 Mode Challenge Tunggal yang Efisien: Mempertahankan struktur baku yang sudah ada (4 pasang kartu, batasan 4 kesempatan atau nyawa, dan pencatatan kesalahan yang presisi) sebagai standar baku untuk mode tantangan di MatchingPairEngine.
+==========================================================================
+
+Mari kita petakan secara presisi target file yang perlu disentuh atau dibuat baru agar implementasi 6 konsepsi tersebut berjalan mulus tanpa merusak arsitektur yang sudah ada.
+
+Berikut adalah peta jalan file (file targeting mapping) yang akan kita intervensi:
+
+1. Komponen Game Engine (MatchingPairEngine.tsx)
+Lokasi: src/modules/fun-learning/components/engines/MatchingPairEngine.tsx
+
+Target Perubahan:
+
+Menambahkan props mode ('practice' | 'challenge') dan status riwayat game sebelumnya (isChallengeDone, bestScore, dll.).
+
+Mengatur logika wrong attempts: jika mode === 'practice', salah pasang tidak mengurangi nyawa/menjadi penalti, dan permainan terus berjalan sampai semua kartu cocok.
+
+Mengatur kalkulasi reward di akhir: jika mode === 'practice', reward EXP dipatok flat (5 EXP) dan Koin 0. Jika mode === 'challenge', menggunakan reward penuh dari konfigurasi asli.
+
+2. Pengelola Sesi Game (SessionRunner.tsx atau Komponen Pembungkus Sesi)
+Lokasi: (File yang mengatur alur multi-blok/sesi game siswa, biasanya di direktori fun-learning/components/ atau student/games/).
+
+Target Perubahan:
+
+Menambahkan layar/tahap interaktif Player Choice sebelum game dimulai: menampilkan kartu pilihan bagi siswa untuk memilih "Mode Tantangan (Challenge)" atau "Latihan Santai (Practice)".
+
+Menangani kondisi otomatis (jika sesi bertatus is_challenge = done, opsi Challenge dikunci atau diarahkan otomatis ke mode Practice).
+
+3. Peta Quest Siswa / Halaman Daftar Misi (StudentGames / Peta Duolingo Style)
+Lokasi: (File halaman utama tempat siswa melihat daftar quest/peta permainan, seperti yang terlihat pada screenshot lampiran).
+
+Target Perubahan:
+
+Mengambil data status submission siswa (fl_game_submissions) untuk mengecek apakah suatu misi sudah berstatus is_challenge = done.
+
+Merombak tampilan kartu misi di peta: menambahkan lencana status (centang hijau, badge emas Perfect ⭐ jika akurasi 100%), ringkasan perolehan skor terbaik (EXP & Koin), serta penyesuaian fungsi tombol interaktifnya.
+
+4. Layanan Data / Service (gameService.ts)
+Lokasi: src/modules/fun-learning/services/gameService.ts
+
+Target Perubahan:
+
+Memastikan fungsi submitGameResult menangani payload pengiriman data reward yang fleksibel (mendukung flat EXP untuk practice dan perolehan koin desimal/penuh untuk challenge).
+
+Memastikan query pengambilan data status misi siswa mendukung pengecekan riwayat kelulusan tantangan (is_challenge = done).

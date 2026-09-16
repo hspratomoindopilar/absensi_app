@@ -1,0 +1,665 @@
+// src/modules/fun-learning/components/GameBuilder.tsx
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { GameType, FunGame } from '../types/game';
+import { createFunGame } from '../services/gameService';
+import { supabase } from '@/lib/supabase';
+import { Check, Trash2, Plus, Trophy, Coins, Search, ChevronDown, X, FolderList, Sparkles } from 'lucide-react';
+
+interface GameBuilderProps {
+  tenantId: string;
+  creatorId: string;
+  onSuccess?: () => void;
+}
+
+export default function GameBuilder({ tenantId, creatorId, onSuccess }: GameBuilderProps) {
+  // --- STATE VIEW MODE (TOGGLE: 'menu' | 'builder' | 'history') ---
+  const [viewMode, setViewMode] = useState<'menu' | 'builder' | 'history'>('menu');
+
+  const [title, setTitle] = useState('');
+  const [subject, setSubject] = useState('Matematika');
+  const [targetClasses, setTargetClasses] = useState<string[]>([]);
+  const [availableClasses, setAvailableClasses] = useState<{ class_id: string; class_name: string }[]>([]);
+
+  // State untuk Dropdown Search Kelas
+  const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false);
+  const [classSearchQuery, setClassSearchQuery] = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // State Umum UI
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+
+  // State Riwayat Modul (Untuk tab History/Edit)
+  const [myGames, setMyGames] = useState<FunGame[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // --- STATE MODULAR UTAMA (MULTI-SESI DENGAN EXP PER SESI) ---
+  const [sessions, setSessions] = useState<Array<{
+    session_id: string;
+    session_title: string;
+    target_exp: number;
+    blocks: Array<{
+      block_id: string;
+      engine_type: GameType;
+      config_data: any;
+    }>;
+  }>>([
+    {
+      session_id: 'sesi_1',
+      session_title: 'Sesi 1: Pengenalan Awal',
+      target_exp: 50,
+      blocks: [
+        {
+          block_id: 'block_1',
+          engine_type: 'matching_pair',
+          config_data: { pairs: [{ id: 1, left: '', right: '' }] }
+        }
+      ]
+    }
+  ]);
+
+  // Hitung total EXP keseluruhan dari semua sesi secara otomatis
+  const totalGameExp = sessions.reduce((acc, curr) => acc + Number(curr.target_exp || 0), 0);
+  const totalGameCoins = Math.floor(totalGameExp / 10);
+
+  // Ambil data kelas dari database
+  useEffect(() => {
+    async function fetchClassesFromDatabase() {
+      try {
+        const { data, error } = await supabase
+          .from('classes')
+          .select('class_id, class_name')
+          .eq('tenant_id', tenantId);
+
+        if (data && !error) {
+          setAvailableClasses(data);
+        }
+      } catch (err) {
+        console.error('Gagal memuat data kelas:', err);
+      }
+    }
+    if (tenantId) fetchClassesFromDatabase();
+  }, [tenantId]);
+
+  // Ambil riwayat game yang pernah dibuat guru ini
+  const fetchMyGamesHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const { data, error } = await supabase
+        .from('fun_games')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .eq('creator_id', creatorId)
+        .order('created_at', { ascending: false });
+
+      if (data && !error) {
+        setMyGames(data);
+      }
+    } catch (err) {
+      console.error('Gagal memuat riwayat game:', err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  // Handle klik di luar dropdown kelas
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsClassDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleClassToggle = (className: string) => {
+    if (targetClasses.includes(className)) {
+      setTargetClasses(targetClasses.filter(c => c !== className));
+    } else {
+      setTargetClasses([...targetClasses, className]);
+    }
+  };
+
+  const filteredClasses = availableClasses.filter(cls =>
+    cls.class_name.toLowerCase().includes(classSearchQuery.toLowerCase())
+  );
+
+  // Helper Sesi & Blok
+  const addSession = () => {
+    setSessions([
+      ...sessions,
+      {
+        session_id: `sesi_${Date.now()}`,
+        session_title: `Sesi ${sessions.length + 1}`,
+        target_exp: 50,
+        blocks: [
+          {
+            block_id: `block_${Date.now()}`,
+            engine_type: 'matching_pair',
+            config_data: { pairs: [{ id: 1, left: '', right: '' }] }
+          }
+        ]
+      }
+    ]);
+  };
+
+  const removeSession = (sessionIndex: number) => {
+    if (sessions.length === 1) {
+      setMessage({ type: 'error', text: 'Game minimal harus memiliki 1 sesi!' });
+      return;
+    }
+    setSessions(sessions.filter((_, idx) => idx !== sessionIndex));
+  };
+
+  const addBlockToSession = (sessionIndex: number, engineType: GameType) => {
+    const updated = [...sessions];
+    let defaultData = {};
+    if (engineType === 'matching_pair') defaultData = { pairs: [{ id: 1, left: '', right: '' }] };
+
+    updated[sessionIndex].blocks.push({
+      block_id: `block_${Date.now()}`,
+      engine_type: engineType,
+      config_data: defaultData
+    });
+    setSessions(updated);
+  };
+
+  const removeBlockFromSession = (sessionIndex: number, blockIndex: number) => {
+    const updated = [...sessions];
+    if (updated[sessionIndex].blocks.length === 1) {
+      setMessage({ type: 'error', text: 'Setiap sesi minimal harus memiliki 1 blok aktivitas!' });
+      return;
+    }
+    updated[sessionIndex].blocks = updated[sessionIndex].blocks.filter((_, idx) => idx !== blockIndex);
+    setSessions(updated);
+  };
+
+  // Submit Handler
+  const handleSubmit = async (e: React.FormEvent, isPublished: boolean) => {
+    e.preventDefault();
+    if (!title.trim()) {
+      setMessage({ type: 'error', text: 'Judul game tidak boleh kosong!' });
+      return;
+    }
+    if (targetClasses.length === 0) {
+      setMessage({ type: 'error', text: 'Pilih minimal satu target kelas dari dropdown!' });
+      return;
+    }
+
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const payload: FunGame = {
+        tenant_id: tenantId,
+        creator_id: creatorId,
+        title,
+        subject,
+        target_class: targetClasses.join(', '),
+        game_type: 'multi_stage_module',
+        reward_exp: totalGameExp,
+        reward_coins: totalGameCoins,
+        config: { sessions },
+        is_published: isPublished
+      };
+
+      await createFunGame(payload);
+      setMessage({
+        type: 'success',
+        text: isPublished ? 'Game multi-sesi berhasil dipublikasikan ke siswa! 🚀' : 'Draft game multi-sesi berhasil disimpan.'
+      });
+      if (onSuccess) onSuccess();
+    } catch (err: any) {
+      setMessage({ type: 'error', text: `Gagal menyimpan ke database: ${err.message}` });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto my-4 bg-white rounded-3xl shadow-xl border border-slate-100 p-6 md:p-8">
+      
+      {/* HEADER UTAMA MODAL (DIRAPETIN JARAKNYA DENGAN ATAS) */}
+      <div className="mb-6 border-b pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-extrabold text-slate-800">Game Builder Modular</h2>
+          <p className="text-xs text-slate-400 mt-0.5">Konfigurasikan peta misi belajar bertingkat ala Duolingo.</p>
+        </div>
+
+        {/* TOMBOL TOGGLE MENU UTAMA (BUAT MODUL VS RIWAYAT MODUL) */}
+        {viewMode !== 'menu' && (
+          <button
+            type="button"
+            onClick={() => setViewMode('menu')}
+            className="text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-xl transition cursor-pointer"
+          >
+            ← Kembali ke Menu Utama
+          </button>
+        )}
+      </div>
+
+      {message && (
+        <div className={`p-4 mb-6 rounded-2xl text-sm font-medium flex items-center gap-2 ${
+          message.type === 'error' ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+        }`}>
+          <span>{message.text}</span>
+        </div>
+      )}
+
+      {/* --- TAMPILAN 1: MENU UTAMA (TOGGLE CHOICE) --- */}
+      {viewMode === 'menu' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-8">
+          <div 
+            onClick={() => {
+              // Reset form untuk buat baru
+              setTitle('');
+              setTargetClasses([]);
+              setSessions([{
+                session_id: 'sesi_1',
+                session_title: 'Sesi 1: Pengenalan Awal',
+                target_exp: 50,
+                blocks: [{ block_id: 'block_1', engine_type: 'matching_pair', config_data: { pairs: [{ id: 1, left: '', right: '' }] } }]
+              }]);
+              setViewMode('builder');
+            }}
+            className="p-8 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/80 rounded-3xl shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between group"
+          >
+            <div>
+              <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md mb-4 group-hover:scale-105 transition">
+                <Sparkles className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 mb-1">Buat Modul Game Pembelajaran</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">Rancang peta misi multi-sesi interaktif baru untuk siswa kelas Anda.</p>
+            </div>
+            <div className="mt-6 text-xs font-bold text-blue-600 flex items-center gap-1">
+              Mulai Buat Modul →
+            </div>
+          </div>
+
+          <div 
+            onClick={() => {
+              setViewMode('history');
+              fetchMyGamesHistory();
+            }}
+            className="p-8 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/80 rounded-3xl shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between group"
+          >
+            <div>
+              <div className="w-12 h-12 rounded-2xl bg-amber-600 text-white flex items-center justify-center shadow-md mb-4 group-hover:scale-105 transition">
+                <FolderList className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 mb-1">Riwayat & Edit Modul Game</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">Kelola, perbarui, atau lihat daftar modul game yang pernah Anda buat sebelumnya.</p>
+            </div>
+            <div className="mt-6 text-xs font-bold text-amber-600 flex items-center gap-1">
+              Buka Riwayat Modul →
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- TAMPILAN 2: RIWAYAT MODUL (HISTORY / EDIT LIST) --- */}
+      {viewMode === 'history' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">Daftar Modul Game Anda</h3>
+            <span className="text-xs text-slate-500 font-medium">{myGames.length} Modul Tersimpan</span>
+          </div>
+
+          {loadingHistory ? (
+            <div className="p-12 text-center text-sm text-slate-400">Memuat riwayat modul...</div>
+          ) : myGames.length === 0 ? (
+            <div className="p-12 text-center bg-slate-50 border border-slate-200 rounded-3xl text-sm text-slate-500">
+              Belum ada modul game yang dibuat. Silakan buat modul baru terlebih dahulu!
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3">
+              {myGames.map((game) => (
+                <div key={game.game_id} className="p-5 bg-white border border-slate-200 rounded-2xl shadow-sm flex items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-lg bg-blue-50 text-blue-600">{game.subject}</span>
+                      <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-lg ${game.is_published ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                        {game.is_published ? 'Published' : 'Draft'}
+                      </span>
+                    </div>
+                    <h4 className="font-bold text-sm text-slate-800">{game.title}</h4>
+                    <p className="text-xs text-slate-400 mt-0.5">Target Kelas: {game.target_class} | Total Sesi: {game.config?.sessions?.length || 1}</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Load data game ke builder untuk diedit
+                      setTitle(game.title);
+                      setSubject(game.subject);
+                      setTargetClasses(game.target_class ? game.target_class.split(', ').map(s => s.trim()) : []);
+                      if (game.config?.sessions) {
+                        setSessions(game.config.sessions);
+                      }
+                      setViewMode('builder');
+                    }}
+                    className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition cursor-pointer"
+                  >
+                    Edit Modul ✏️
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* --- TAMPILAN 3: FORM BUILDER UTAMA (STICKY STAGES & SESI DI BAWAH) --- */}
+      {viewMode === 'builder' && (
+        <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Judul Game / Aktivitas</label>
+              <input
+                type="text"
+                className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition"
+                placeholder="Contoh: Petualangan Matematika Seru"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Mata Pelajaran</label>
+              <input
+                type="text"
+                className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          {/* DROPDOWN SEARCH & MULTI-CENTANG KELAS */}
+          <div className="relative" ref={dropdownRef}>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Target Kelas Siswa</label>
+            <div
+              onClick={() => setIsClassDropdownOpen(!isClassDropdownOpen)}
+              className="w-full min-h-[52px] p-3 bg-slate-50 border border-slate-200 rounded-2xl flex flex-wrap items-center gap-2 cursor-pointer hover:border-slate-300 transition"
+            >
+              {targetClasses.length === 0 ? (
+                <span className="text-sm text-slate-400">Pilih kelas target (bisa lebih dari satu)...</span>
+              ) : (
+                targetClasses.map((cls) => (
+                  <span key={cls} className="bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm">
+                    {cls}
+                    <X className="w-3.5 h-3.5 hover:text-rose-200 transition cursor-pointer" onClick={(e) => { e.stopPropagation(); handleClassToggle(cls); }} />
+                  </span>
+                ))
+              )}
+              <div className="ml-auto text-slate-400">
+                <ChevronDown className={`w-4 h-4 transition-transform ${isClassDropdownOpen ? 'rotate-180' : ''}`} />
+              </div>
+            </div>
+
+            {isClassDropdownOpen && (
+              <div className="absolute z-20 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl p-3 space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Cari nama kelas..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:border-blue-500 transition"
+                    value={classSearchQuery}
+                    onChange={(e) => setClassSearchQuery(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+
+                <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+                  {filteredClasses.length === 0 ? (
+                    <div className="p-3 text-center text-xs text-slate-400 italic">Kelas tidak ditemukan</div>
+                  ) : (
+                    filteredClasses.map((cls) => {
+                      const isChecked = targetClasses.includes(cls.class_name);
+                      return (
+                        <div
+                          key={cls.class_id}
+                          onClick={() => handleClassToggle(cls.class_name)}
+                          className={`flex items-center justify-between p-2.5 rounded-xl text-sm cursor-pointer transition ${
+                            isChecked ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                          }`}
+                        >
+                          <span>{cls.class_name}</span>
+                          <div className={`w-5 h-5 rounded-lg border flex items-center justify-center transition ${
+                            isChecked ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white'
+                          }`}>
+                            {isChecked && <Check className="w-3.5 h-3.5" />}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* INFORMASI TOTAL AKUMULASI REWARD (OTOMATIS DARI SESI) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-amber-50/60 border border-amber-200 rounded-2xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600">
+                <Trophy className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="block text-[11px] font-bold uppercase tracking-wider text-amber-700">Total Akumulasi EXP Game</span>
+                <span className="text-base font-extrabold text-amber-900">{totalGameExp} EXP</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-yellow-100 flex items-center justify-center text-yellow-600">
+                <Coins className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="block text-[11px] font-bold uppercase tracking-wider text-yellow-700">Total Konversi Koin (10:1)</span>
+                <span className="text-base font-extrabold text-yellow-900">🪙 {totalGameCoins} Koin</span>
+              </div>
+            </div>
+          </div>
+
+          {/* --- DAFTAR SESI PEMBELAJARAN (STAGES) --- */}
+          <div className="space-y-6 pt-4 border-t">
+            <h3 className="text-base font-bold text-slate-800">Daftar Sesi Pembelajaran & Target Poin</h3>
+
+            {sessions.map((session, sIdx) => (
+              <div key={session.session_id} className="p-6 bg-slate-50/80 border border-slate-200 rounded-3xl space-y-4 shadow-sm">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <input
+                    type="text"
+                    className="w-full max-w-sm p-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800 outline-none focus:border-indigo-500"
+                    value={session.session_title}
+                    onChange={(e) => {
+                      const updated = [...sessions];
+                      updated[sIdx].session_title = e.target.value;
+                      setSessions(updated);
+                    }}
+                    placeholder="Nama Sesi (Misal: Sesi 1 - Dasar)"
+                  />
+
+                  <div className="flex items-center gap-3 w-full md:w-auto justify-between">
+                    <div className="flex items-center gap-1.5 bg-white px-3 py-2 rounded-xl border border-slate-200">
+                      <span className="text-xs font-bold text-slate-500">Target EXP Sesi:</span>
+                      <select
+                        className="text-xs font-bold text-indigo-600 outline-none cursor-pointer bg-transparent"
+                        value={session.target_exp}
+                        onChange={(e) => {
+                          const updated = [...sessions];
+                          updated[sIdx].target_exp = Number(e.target.value);
+                          setSessions(updated);
+                        }}
+                      >
+                        {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150, 200].map((val) => (
+                          <option key={val} value={val}>{val} EXP</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {sessions.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeSession(sIdx)}
+                        className="text-xs text-rose-600 hover:bg-rose-50 p-2 rounded-xl font-bold transition flex items-center gap-1 cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* --- BLOK ENGINE DI DALAM SESI --- */}
+                <div className="space-y-3 pl-2 border-l-2 border-indigo-200">
+                  {session.blocks.map((block, bIdx) => (
+                    <div key={block.block_id} className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-extrabold px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg">
+                            Blok #{bIdx + 1}
+                          </span>
+                          <select
+                            className="p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none cursor-pointer"
+                            value={block.engine_type}
+                            onChange={(e) => {
+                              const newType = e.target.value as GameType;
+                              const updated = [...sessions];
+                              updated[sIdx].blocks[bIdx].engine_type = newType;
+                              if (newType === 'matching_pair') {
+                                updated[sIdx].blocks[bIdx].config_data = { pairs: [{ id: 1, left: '', right: '' }] };
+                              }
+                              setSessions(updated);
+                            }}
+                          >
+                            <option value="matching_pair">Matching Pair (Pasangkan Kartu)</option>
+                            <option value="word_scramble" disabled>Word Scramble (Segera Hadir)</option>
+                            <option value="card_quiz" disabled>Card Quiz (Segera Hadir)</option>
+                            <option value="puzzle_reveal" disabled>Puzzle Reveal (Segera Hadir)</option>
+                          </select>
+                        </div>
+
+                        {session.blocks.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeBlockFromSession(sIdx, bIdx)}
+                            className="text-rose-500 hover:bg-rose-50 p-2 rounded-lg transition cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* RENDER KONFIGURASI ENGINE: MATCHING PAIR */}
+                      {block.engine_type === 'matching_pair' && (
+                        <div className="space-y-2 pt-2">
+                          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Konfigurasi Pasangan Kartu</div>
+                          {block.config_data.pairs?.map((pair: any, pIdx: number) => (
+                            <div key={pair.id || pIdx} className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                placeholder={`Pernyataan ${pIdx + 1} (Kiri)`}
+                                className="w-1/2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none"
+                                value={pair.left}
+                                onChange={(e) => {
+                                  const updated = [...sessions];
+                                  updated[sIdx].blocks[bIdx].config_data.pairs[pIdx].left = e.target.value;
+                                  setSessions(updated);
+                                }}
+                              />
+                              <input
+                                type="text"
+                                placeholder={`Jawaban ${pIdx + 1} (Kanan)`}
+                                className="w-1/2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none"
+                                value={pair.right}
+                                onChange={(e) => {
+                                  const updated = [...sessions];
+                                  updated[sIdx].blocks[bIdx].config_data.pairs[pIdx].right = e.target.value;
+                                  setSessions(updated);
+                                }}
+                              />
+                              {block.config_data.pairs.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = [...sessions];
+                                    updated[sIdx].blocks[bIdx].config_data.pairs = updated[sIdx].blocks[bIdx].config_data.pairs.filter((_: any, i: number) => i !== pIdx);
+                                    setSessions(updated);
+                                  }}
+                                  className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = [...sessions];
+                              const pairsArr = updated[sIdx].blocks[bIdx].config_data.pairs || [];
+                              pairsArr.push({ id: Date.now(), left: '', right: '' });
+                              setSessions(updated);
+                            }}
+                            className="text-[11px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" /> Tambah Pasangan Kartu
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Tombol Tambah Blok di Sesi Ini */}
+                  <button
+                    type="button"
+                    onClick={() => addBlockToSession(sIdx, 'matching_pair')}
+                    className="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Tambah Blok Aktivitas ke Sesi Ini
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {/* TOMBOL TAMBAH SESI BARU DI BAWAH (MENGHINDARI SCROLL JAUH) */}
+            <button
+              type="button"
+              onClick={addSession}
+              className="w-full py-4 border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-indigo-50/50 hover:bg-indigo-50 text-indigo-700 rounded-3xl text-sm font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+            >
+              <Plus className="w-4 h-4" /> Tambah Sesi Pembelajaran Baru
+            </button>
+          </div>
+
+          {/* Tombol Eksekusi Aksi Publish / Draft */}
+          <div className="flex items-center justify-end gap-3 pt-6 border-t">
+            <button
+              type="button"
+              disabled={loading}
+              onClick={(e) => handleSubmit(e, false)}
+              className="px-6 py-3.5 border border-slate-300 hover:bg-slate-50 rounded-2xl text-sm font-bold text-slate-700 transition cursor-pointer"
+            >
+              Simpan sebagai Draft
+            </button>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={(e) => handleSubmit(e, true)}
+              className="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-sm font-bold shadow-lg shadow-blue-500/25 transition cursor-pointer"
+            >
+              {loading ? 'Menyimpan...' : 'Publish ke Siswa 🚀'}
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}

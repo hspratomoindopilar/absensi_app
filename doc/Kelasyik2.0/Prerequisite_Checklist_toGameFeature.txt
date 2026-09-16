@@ -1,0 +1,22 @@
+
+Berikut adalah **Daftar Prasyarat (Prerequisite Checklist)** yang wajib kita selesaikan sebelum benar-benar masuk ke Tahap 4:
+
+### **1. Verifikasi & Penyelarasan Tabel Database Pendukung**
+
+* **Tabel `students` & `student_progress`:** Kita perlu memastikan struktur tabel ini sudah siap menampung akumulasi data reward (seperti kolom `total_exp` atau `total_coins`) yang dikirimkan oleh modul game saat siswa menyelesaikan misi.
+* **Tabel `quests`:** Apakah tabel ini independen atau berkaitan dengan game? Kita perlu pastikan apakah data *fun learning* murni mengandalkan `fl_games` atau ada sinkronisasi ke tabel `quests` yang sudah ada di database-mu.
+
+### **2. Membangun Entry Point Sisi Siswa (Student Dashboard / Quest Page)**
+
+* Saat ini baru ada *GameBuilder* (sisi guru). Kita butuh halaman atau tab antarmuka di sisi siswa (misalnya di dalam rute dashboard murid Kelasyik) yang merender komponen `GamePlayer.tsx`.
+
+
+* Halaman ini harus bisa menangkap sesi login murid yang sedang aktif (mengambil `student_id`, `tenant_id`, dan `student_class` secara dinamis dari tabel `students` atau `users`, bukan data *hardcode* dummy).
+
+### **3. Merangkai Pilihan Engine di dalam GamePlayer**
+
+* Menghubungkan *lobby* `GamePlayer.tsx` agar ketika siswa mengeklik "Mulai Misi", game player tidak hanya menampilkan tombol dummy "Selesaikan Misi", melainkan **langsung membuka *engine* game interaktif** yang sesuai dengan tipe game-nya (`card_quiz`, `matching_pair`, `word_scramble`, atau `puzzle_reveal`).
+
+---
+
+Menurutmu, dari 3 poin prasyarat di atas, mana yang ingin kita bedah atau selesaikan terlebih dahulu sebelum kita menyentuh sistem *reward* otomatis di Tahap 4?

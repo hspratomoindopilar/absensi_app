@@ -1,0 +1,231 @@
+return (
+    <div className="max-w-3xl mx-auto my-8 bg-white rounded-3xl shadow-xl border border-slate-100 p-8">
+      <div className="mb-6 border-b pb-4">
+        <h2 className="text-2xl font-bold text-slate-800">Game Builder</h2>
+        <p className="text-sm text-slate-500 mt-1">Konfigurasikan aktivitas pembelajaran interaktif yang terhubung langsung ke database siswa.</p>
+      </div>
+
+      {message && (
+        <div className={`p-4 mb-6 rounded-2xl text-sm font-medium flex items-center gap-2 ${
+          message.type === 'error' ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+        }`}>
+          <span>{message.text}</span>
+        </div>
+      )}
+
+      <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="md:col-span-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Judul Game / Aktivitas</label>
+            <input 
+              type="text" 
+              className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition"
+              placeholder="Contoh: Operasi Hitung Campuran Bilangan Bulat"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Mata Pelajaran</label>
+            <input 
+              type="text" 
+              className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Mekanisme Engine Game</label>
+            <select 
+              className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:bg-white outline-none transition cursor-pointer"
+              value={gameType}
+              onChange={(e) => setGameType(e.target.value as GameType)}
+            >
+              <option value="matching_pair">Matching Pair (Pasangkan Kartu)</option>
+              <option value="word_scramble">Word Scramble (Susun Kata)</option>
+              <option value="card_quiz">Card Quiz (Kuis Pilihan Ganda)</option>
+              <option value="puzzle_reveal">Puzzle Reveal (Tebak Gambar)</option>
+            </select>
+          </div>
+        </div>
+
+        {/* DROPDOWN SEARCH & MULTI-CENTANG KELAS (AMAN UNTUK PULUHAN KELAS) */}
+        <div className="relative" ref={dropdownRef}>
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Target Kelas Siswa</label>
+          
+          {/* Kotak Trigger Dropdown & Badge Terpilih */}
+          <div 
+            onClick={() => setIsClassDropdownOpen(!isClassDropdownOpen)}
+            className="w-full min-h-[52px] p-3 bg-slate-50 border border-slate-200 rounded-2xl flex flex-wrap items-center gap-2 cursor-pointer hover:border-slate-300 transition"
+          >
+            {targetClasses.length === 0 ? (
+              <span className="text-sm text-slate-400">Pilih kelas target (bisa lebih dari satu)...</span>
+            ) : (
+              targetClasses.map((cls) => (
+                <span 
+                  key={cls}
+                  className="bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm"
+                >
+                  {cls}
+                  <X 
+                    className="w-3.5 h-3.5 hover:text-rose-200 transition" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleClassToggle(cls);
+                    }}
+                  />
+                </span>
+              ))
+            )}
+            <div className="ml-auto text-slate-400">
+              <ChevronDown className={`w-4 h-4 transition-transform ${isClassDropdownOpen ? 'rotate-180' : ''}`} />
+            </div>
+          </div>
+
+          {/* Menu Dropdown Pencarian & Daftar Checkbox */}
+          {isClassDropdownOpen && (
+            <div className="absolute z-20 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl p-3 space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400" />
+                <input 
+                  type="text"
+                  placeholder="Cari nama kelas..."
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:border-blue-500 transition"
+                  value={classSearchQuery}
+                  onChange={(e) => setClassSearchQuery(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+
+              <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+                {filteredClasses.length === 0 ? (
+                  <div className="p-3 text-center text-xs text-slate-400 italic">Kelas tidak ditemukan</div>
+                ) : (
+                  filteredClasses.map((cls) => {
+                    const isChecked = targetClasses.includes(cls.class_name);
+                    return (
+                      <div 
+                        key={cls.class_id}
+                        onClick={() => handleClassToggle(cls.class_name)}
+                        className={`flex items-center justify-between p-2.5 rounded-xl text-sm cursor-pointer transition ${
+                          isChecked ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                        }`}
+                      >
+                        <span>{cls.class_name}</span>
+                        <div className={`w-5 h-5 rounded-lg border flex items-center justify-center transition ${
+                          isChecked ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white'
+                        }`}>
+                          {isChecked && <Check className="w-3.5 h-3.5" />}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* REWARD EXP & AUTO KOIN */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1">
+              <Trophy className="w-3.5 h-3.5 text-amber-500" /> Reward EXP (Kelipatan 10)
+            </label>
+            <select 
+              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none cursor-pointer"
+              value={rewardExp}
+              onChange={(e) => setRewardExp(Number(e.target.value))}
+            >
+              {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((val) => (
+                <option key={val} value={val}>{val} EXP</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1">
+              <Coins className="w-3.5 h-3.5 text-yellow-500" /> Otomatis Koin (10 EXP = 1 Koin)
+            </label>
+            <div className="w-full p-3 bg-white/70 border border-slate-200 rounded-xl text-sm font-black text-amber-600 flex items-center gap-2">
+              <span>🪙 {calculatedCoins} Koin</span>
+              <span className="text-[10px] text-slate-400 font-normal">(Terkonversi otomatis)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Konfigurasi Engine Matching Pair */}
+        {gameType === 'matching_pair' && (
+          <div className="border-t pt-6 space-y-4">
+            <h3 className="font-bold text-sm text-slate-700">Konfigurasi Pasangan Kartu</h3>
+            {pairs.map((pair, idx) => (
+              <div key={pair.id} className="flex items-center gap-3">
+                <input 
+                  type="text" 
+                  placeholder={`Pernyataan ${idx + 1} (Kiri)`}
+                  className="w-1/2 p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none"
+                  value={pair.left}
+                  onChange={(e) => {
+                    const newPairs = [...pairs];
+                    newPairs[idx].left = e.target.value;
+                    setPairs(newPairs);
+                  }}
+                />
+                <input 
+                  type="text" 
+                  placeholder={`Jawaban ${idx + 1} (Kanan)`}
+                  className="w-1/2 p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none"
+                  value={pair.right}
+                  onChange={(e) => {
+                    const newPairs = [...pairs];
+                    newPairs[idx].right = e.target.value;
+                    setPairs(newPairs);
+                  }}
+                />
+                {pairs.length > 1 && (
+                  <button 
+                    type="button" 
+                    onClick={() => setPairs(pairs.filter(p => p.id !== pair.id))}
+                    className="p-3 text-rose-500 hover:bg-rose-50 rounded-2xl transition"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+            <button 
+              type="button" 
+              onClick={() => setPairs([...pairs, { id: pairs.length + 1, left: '', right: '' }])}
+              className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" /> Tambah Pasangan Kartu
+            </button>
+          </div>
+        )}
+
+        {/* Tombol Eksekusi Aksi Publish / Draft */}
+        <div className="flex items-center justify-end gap-3 pt-6 border-t">
+          <button 
+            type="button"
+            disabled={loading}
+            onClick={(e) => handleSubmit(e, false)}
+            className="px-6 py-3.5 border border-slate-300 hover:bg-slate-50 rounded-2xl text-sm font-bold text-slate-700 transition cursor-pointer"
+          >
+            Simpan sebagai Draft
+          </button>
+          <button 
+            type="button"
+            disabled={loading}
+            onClick={(e) => handleSubmit(e, true)}
+            className="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-sm font-bold shadow-lg shadow-blue-500/25 transition cursor-pointer"
+          >
+            {loading ? 'Menyimpan...' : 'Publish ke Siswa 🚀'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );

@@ -8,22 +8,18 @@ export default function BottomNav() {
   const pathname = usePathname();
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
-  // Daftar menu utama yang selalu nampak di bottom bar (maksimal 4 agar tidak sesak)
+ // Daftar menu utama yang selalu nampak di bottom bar (maksimal 4 agar tidak sesak)
   const mainNavs = [
-    { href: '/', label: 'Home', icon: '🏠' },
-    { href: '/settings', label: 'Settings', icon: '⚙️' },
-    { href: '/rekap', label: 'Rekap', icon: '📈' },
-    { href: '/quest', label: 'Quest', icon: '🎮' },
+    { href: '/teacher', label: 'Home', icon: '🏠' },
+    { href: '/teacher/settings', label: 'Settings', icon: '⚙️' },
+    { href: '/teacher/rekap', label: 'Rekap', icon: '📈' },
+    { href: '/teacher/game-builder', label: 'Builder', icon: '🛠️' }, // Sesuaikan juga jika quest atau fitur lain ada di bawah path khusus, atau biarkan jika root
     
   ];
 
   // Daftar menu tambahan / ekspansi (untuk menampung menu ke-5 sampai ke-8 atau seterusnya di masa depan)
   const extendedNavs = [
-    { href: '/settings', label: 'Hari Sekolah & Libur', icon: '🏫', desc: 'Atur 5/6 hari & kalender libur' },
-    // Contoh slot menu masa depan (bisa ditambah nanti)
-    // { href: '/profile', label: 'Profil Guru', icon: '👩‍🏫', desc: 'Informasi akun & sekolah' },
-    // { href: '/reports', label: 'Cetak Laporan', icon: '🖨️', desc: 'Export PDF / Excel rekap' },
-    // { href: '/help', label: 'Bantuan', icon: '❓', desc: 'Panduan penggunaan aplikasi' },
+    { href: '/teacher/settings', label: 'Hari Sekolah & Libur', icon: '🏫', desc: 'Atur 5/6 hari & kalender libur' },
   ];
 
   return (

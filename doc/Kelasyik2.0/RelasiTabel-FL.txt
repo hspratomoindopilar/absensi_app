@@ -1,0 +1,28 @@
+Pertanyaan yang sangat bagus dan teliti, om! Karena kita ingin modul *fun learning* ini terintegrasi mulus dengan tabel-tabel yang sudah ada di database Supabase-mu (seperti yang terlihat di gambar), modul ini akan berelasi secara langsung maupun tidak langsung dengan tabel-tabel berikut:
+
+1. **`tenants`**
+* **Relasi:** Sebagai jangkar utama (*Level 1*). Setiap game yang dibuat (`fl_games`) dan data submission murid (`fl_game_submissions`) wajib terikat ke `tenant_id` agar data game antar sekolah tidak saling bercampur.
+
+
+
+
+2. **`users`**
+* **Relasi:** Sebagai pembuat game (`creator_id` di tabel `fl_games`). Kolom ini mereferensikan akun guru atau admin yang sedang login saat membuat dan mempublikasikan kuis/game.
+
+
+
+
+3. **`students`**
+* **Relasi:** Sebagai pemain game. Saat murid mengerjakan game, data hasil penyelesaiannya (`student_id` di tabel `fl_game_submissions`) merujuk langsung ke tabel data siswa yang ada.
+
+
+
+
+4. **`student_progress`** (Tabel yang sudah ada di list kamu!)
+* **Relasi:** Ini jembatan penting untuk gamifikasinya. Ketika murid menyelesaikan game *fun learning*, skor/EXP yang didapat dari tabel `fl_game_submissions` bisa langsung disinkronkan atau mengakumulasi poin ke tabel `student_progress` (misalnya untuk nambahin total EXP, koin, atau *level* karakter siswa secara global di dashboard).
+
+
+
+Jadi, tabel eksisting yang **wajib** disentuh langsung oleh struktur *fun learning* kita adalah **`tenants`** (untuk keamanan multi-tenant) dan **`students`** (untuk identitas pemain), sementara tabel **`student_progress`** akan menjadi target utama tempat *reward* EXP/koin itu disimpan.
+
+Bagaimana, sejauh ini relasinya sudah pas di kepala? Kalau masih ada yang ganjil atau mau disesuaikan sebelum kita *run* SQL-nya, silakan bilang!

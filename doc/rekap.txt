@@ -1,0 +1,7 @@
+1. Export ke Excel/CSV (biasanya ini yang paling dicari guru buat laporan cepat).DONE
+
+2. Indikator Grafik / Persentase (%) Kehadiran (biar keliatan warna-warni gamified/statistik). DONE
+
+3. Rentang Tanggal Kustom (biar fleksibel gak harus per bulan kalender pas).DONE
+
+4. Cetak PDF / Print View (biar langsung rapi dicetak).DONE

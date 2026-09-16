@@ -1,0 +1,231 @@
+## Table `tenants`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `tenant_id` | `uuid` | Primary |
+| `school_name` | `varchar` |  |
+| `slug` | `varchar` |  Unique |
+| `created_at` | `timestamptz` |  |
+| `school_days` | `int4` |  |
+
+## Table `classes`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `class_id` | `uuid` | Primary |
+| `tenant_id` | `uuid` |  Nullable |
+| `class_name` | `varchar` |  |
+| `academic_year` | `varchar` |  |
+| `created_at` | `timestamptz` |  |
+
+## Table `users`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `user_id` | `uuid` | Primary |
+| `tenant_id` | `uuid` |  Nullable |
+| `email` | `varchar` |  Unique |
+| `full_name` | `varchar` |  |
+| `role` | `varchar` |  |
+| `created_at` | `timestamptz` |  |
+
+## Table `students`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `student_id` | `uuid` | Primary |
+| `tenant_id` | `uuid` |  Nullable |
+| `class_id` | `uuid` |  Nullable |
+| `user_id` | `uuid` |  Nullable |
+| `nis` | `varchar` |  |
+| `full_name` | `varchar` |  |
+| `created_at` | `timestamptz` |  |
+| `gender` | `varchar` |  Nullable |
+| `password` | `text` |  Nullable |
+| `is_first_login` | `bool` |  Nullable |
+| `pob` | `varchar` |  Nullable |
+| `dob` | `date` |  Nullable |
+| `address` | `text` |  Nullable |
+| `phone` | `varchar` |  Nullable |
+| `hobbies` | `_text` |  Nullable |
+| `social_media` | `jsonb` |  Nullable |
+| `avatar_url` | `text` |  Nullable |
+
+## Table `attendance`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `attendance_id` | `uuid` | Primary |
+| `tenant_id` | `uuid` |  Nullable |
+| `student_id` | `uuid` |  Nullable |
+| `date` | `date` |  |
+| `status` | `varchar` |  |
+| `remarks` | `text` |  Nullable |
+| `recorded_by` | `uuid` |  Nullable |
+| `created_at` | `timestamptz` |  |
+
+## Table `quests`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `quest_id` | `uuid` | Primary |
+| `tenant_id` | `uuid` |  Nullable |
+| `title` | `varchar` |  |
+| `description` | `text` |  Nullable |
+| `xp_reward` | `int4` |  Nullable |
+| `point_reward` | `int4` |  Nullable |
+| `quest_type` | `varchar` |  |
+
+## Table `student_progress`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `progress_id` | `uuid` | Primary |
+| `student_id` | `uuid` |  Nullable |
+| `quest_id` | `uuid` |  Nullable |
+| `is_completed` | `bool` |  Nullable |
+| `completed_at` | `timestamptz` |  Nullable |
+
+## Table `school_holidays`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `holiday_id` | `uuid` | Primary |
+| `tenant_id` | `uuid` |  |
+| `start_date` | `date` |  |
+| `end_date` | `date` |  |
+| `description` | `varchar` |  |
+| `created_at` | `timestamptz` |  |
+
+## Table `fl_games`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `game_id` | `uuid` | Primary |
+| `tenant_id` | `uuid` |  |
+| `creator_id` | `uuid` |  Nullable |
+| `title` | `varchar` |  |
+| `subject` | `varchar` |  |
+| `target_class` | `varchar` |  |
+| `game_type` | `varchar` |  |
+| `reward_exp` | `int4` |  Nullable |
+| `reward_coins` | `int4` |  Nullable |
+| `config` | `jsonb` |  |
+| `is_published` | `bool` |  Nullable |
+| `created_at` | `timestamptz` |  |
+| `updated_at` | `timestamptz` |  Nullable |
+
+## Table `fl_game_submissions`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `submission_id` | `uuid` | Primary |
+| `game_id` | `uuid` |  |
+| `student_id` | `uuid` |  |
+| `tenant_id` | `uuid` |  |
+| `score` | `int4` |  Nullable |
+| `accuracy_percentage` | `numeric` |  Nullable |
+| `time_taken_seconds` | `int4` |  Nullable |
+| `is_completed` | `bool` |  Nullable |
+| `earned_rewards` | `jsonb` |  Nullable |
+| `submitted_at` | `timestamptz` |  |
+| `session_index` | `int4` |  |
+
+## Table `fl_student_stats`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `stat_id` | `uuid` | Primary |
+| `student_id` | `uuid` |  |
+| `tenant_id` | `uuid` |  |
+| `total_exp` | `numeric` |  |
+| `total_coins` | `numeric` |  |
+| `games_played_count` | `int4` |  |
+| `updated_at` | `timestamptz` |  |
+
+## RLS Policies
+
+### `school_holidays`
+
+| Policy | Command | Roles | Action | USING | WITH CHECK |
+|--------|---------|-------|--------|-------|------------|
+| `Tenant isolation for tenants` | ALL | public | PERMISSIVE | `(tenant_id = get_user_tenant_id())` | — |
+
+### `fl_games`
+
+| Policy | Command | Roles | Action | USING | WITH CHECK |
+|--------|---------|-------|--------|-------|------------|
+| `Enable all access for teachers on fl_games` | ALL | public | PERMISSIVE | `true` | `true` |
+
+### `classes`
+
+| Policy | Command | Roles | Action | USING | WITH CHECK |
+|--------|---------|-------|--------|-------|------------|
+| `Izinkan publik membaca data kelas` | SELECT | anon | PERMISSIVE | `true` | — |
+| `Tenant isolation for classes` | ALL | public | PERMISSIVE | `(tenant_id = get_user_tenant_id())` | — |
+
+### `users`
+
+| Policy | Command | Roles | Action | USING | WITH CHECK |
+|--------|---------|-------|--------|-------|------------|
+| `Tenant isolation for users` | ALL | public | PERMISSIVE | `(tenant_id = get_user_tenant_id())` | — |
+
+### `attendance`
+
+| Policy | Command | Roles | Action | USING | WITH CHECK |
+|--------|---------|-------|--------|-------|------------|
+| `Tenant isolation for attendance` | ALL | public | PERMISSIVE | `(tenant_id = get_user_tenant_id())` | — |
+
+### `tenants`
+
+| Policy | Command | Roles | Action | USING | WITH CHECK |
+|--------|---------|-------|--------|-------|------------|
+| `Buka akses baca tenants untuk publik` | SELECT | anon, authenticated | PERMISSIVE | `true` | — |
+| `Tenant isolation for tenants` | ALL | public | PERMISSIVE | `(tenant_id = get_user_tenant_id())` | — |
+
+### `fl_game_submissions`
+
+| Policy | Command | Roles | Action | USING | WITH CHECK |
+|--------|---------|-------|--------|-------|------------|
+| `Allow student submissions` | ALL | public | PERMISSIVE | `true` | `true` |
+| `Bisa lihat hasil game siswa` | SELECT | public | PERMISSIVE | `true` | — |
+| `Bisa submit hasil game siswa` | INSERT | public | PERMISSIVE | — | `true` |
+
+### `fl_student_stats`
+
+| Policy | Command | Roles | Action | USING | WITH CHECK |
+|--------|---------|-------|--------|-------|------------|
+| `Allow student stats update` | ALL | public | PERMISSIVE | `true` | `true` |
+| `Izinkan publik modify fl_student_stats` | ALL | public | PERMISSIVE | `true` | `true` |
+| `Izinkan publik select fl_student_stats` | SELECT | public | PERMISSIVE | `true` | — |
+
+### `students`
+
+| Policy | Command | Roles | Action | USING | WITH CHECK |
+|--------|---------|-------|--------|-------|------------|
+| `Izinkan publik membaca data siswa untuk login` | SELECT | anon | PERMISSIVE | `true` | — |
+| `Izinkan siswa memperbarui profil sendiri` | UPDATE | public | PERMISSIVE | `true` | — |
+| `Tenant isolation for students` | ALL | public | PERMISSIVE | `(tenant_id = get_user_tenant_id())` | — |
+

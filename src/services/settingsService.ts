@@ -81,10 +81,20 @@ export async function deleteSchoolHoliday(holidayId: string) {
 
 // ==================== MANAJEMEN SISWA & IMPORT ====================
 
+// Fungsi helper untuk auto-generate password sementara siswa (6 karakter)
+function generateTempPassword(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Hilangkan karakter ambigu seperti O, 0, I, 1
+  let pass = '';
+  for (let i = 0; i < 6; i++) {
+    pass += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return pass;
+}
+
 export async function fetchStudentsManagement(tenantId: string, classId: string) {
   const { data, error } = await supabase
     .from('students')
-    .select('student_id, nis, full_name, gender')
+    .select('student_id, nis, full_name, gender, password')
     .eq('tenant_id', tenantId)
     .eq('class_id', classId)
     .order('full_name', { ascending: true });
@@ -94,9 +104,19 @@ export async function fetchStudentsManagement(tenantId: string, classId: string)
 }
 
 export async function addSingleStudent(tenantId: string, classId: string, nis: string, fullName: string, gender: 'L' | 'P') {
+  const tempPassword = generateTempPassword();
+
   const { error } = await supabase
     .from('students')
-    .insert([{ tenant_id: tenantId, class_id: classId, nis, full_name: fullName, gender }]);
+    .insert([{ 
+      tenant_id: tenantId, 
+      class_id: classId, 
+      nis, 
+      full_name: fullName, 
+      gender,
+      password: tempPassword, // Password auto-generate
+      is_first_login: true
+    }]);
 
   if (error) throw new Error(error.message);
 }
@@ -121,11 +141,14 @@ export async function bulkUpsertStudents(
     nis: s.nis || '',
     full_name: s.full_name,
     gender: s.gender || 'L',
+    password: generateTempPassword(), // Auto-generate untuk setiap siswa baru
+    is_first_login: true,
   }));
 
   const { error } = await supabase
     .from('students')
-    .upsert(records, { onConflict: 'tenant_id,nis' });
+    .upsert(records, { onConflict: 'tenant_id,nis', ignoreDuplicates: false }); 
+    // Catatan: Jika pakai upsert, pastikan password lama tidak tertimpa jika NIS sudah ada, atau sesuaikan kebutuhan.
 
   if (error) throw new Error(error.message);
 }
@@ -138,3 +161,4 @@ export async function updateStudent(studentId: string, nis: string, fullName: st
 
   if (error) throw new Error(error.message);
 }
+

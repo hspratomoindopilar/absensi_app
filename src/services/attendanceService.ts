@@ -18,12 +18,14 @@ export async function fetchSchoolAndClassInfo(userEmail: string) {
     .eq('tenant_id', userData.tenant_id)
     .single();
 
-  // 3. Ambil nama kelas dari tabel classes
-  const { data: classData } = await supabase
+  // 3. Ambil data kelas dari tabel classes
+  const { data: classList } = await supabase
     .from('classes')
     .select('class_id, class_name, academic_year')
     .eq('tenant_id', userData.tenant_id)
-    .single();
+    .limit(1);
+
+  const classData = classList && classList.length > 0 ? classList[0] : null;
 
   return {
     userId: userData.user_id, // Penting untuk recorded_by
@@ -129,3 +131,37 @@ export async function fetchAttendanceByDate(tenantId: string, classId: string, t
   return statusMap;
 }
 
+export async function fetchClassAttendanceSummary(tenantId: string, classId: string, targetDate: string) {
+  const { data: students, error: studentError } = await supabase
+    .from('students')
+    .select('student_id')
+    .eq('tenant_id', tenantId)
+    .eq('class_id', classId);
+
+  if (studentError || !students || students.length === 0) {
+    return { hadir: 0, sakit: 0, izin: 0, alpa: 0, total: 0 };
+  }
+
+  const studentIds = students.map((s) => s.student_id);
+
+  const { data: attendanceData, error: attError } = await supabase
+    .from('attendance')
+    .select('status')
+    .eq('date', targetDate)
+    .in('student_id', studentIds);
+
+  if (attError || !attendanceData) {
+    return { hadir: 0, sakit: 0, izin: 0, alpa: 0, total: students.length };
+  }
+
+  const summary = { hadir: 0, sakit: 0, izin: 0, alpa: 0, total: students.length };
+  
+  attendanceData.forEach((item) => {
+    if (item.status === 'H') summary.hadir++;
+    else if (item.status === 'S') summary.sakit++;
+    else if (item.status === 'I') summary.izin++;
+    else if (item.status === 'A') summary.alpa++;
+  });
+
+  return summary;
+}

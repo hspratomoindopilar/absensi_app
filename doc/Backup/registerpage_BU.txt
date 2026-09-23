@@ -1,3 +1,4 @@
+\\backup_17/9/26_src\app\register\page.tsx 
 'use client';
 
 import { useState } from 'react';
@@ -6,9 +7,6 @@ import { registerTenantAndAdmin } from '@/services/authService';
 import Link from 'next/link';
 
 export default function RegisterPage() {
-  // Tambah state untuk tenant_type ('individual' | 'institution')
-  const [tenantType, setTenantType] = useState<'individual' | 'institution'>('individual');
-
   const [schoolName, setSchoolName] = useState('');
   const [slug, setSlug] = useState('');
   const [adminName, setAdminName] = useState('');
@@ -22,29 +20,13 @@ export default function RegisterPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const router = useRouter();
 
-  // Handler dinamis saat tipe tenant berubah
-  const handleTenantTypeChange = (type: 'individual' | 'institution') => {
-    setTenantType(type);
-    if (type === 'individual') {
-      setSchoolName('Ruang Mandiri Guru');
-      // Perbaikan kurung dan pemanggilan substring
-      const randomStr = Math.random().toString(36).substring(2, 7);
-      setSlug('ruang-mandiri-' + randomStr);
-    } else {
-      setSchoolName('');
-      setSlug('');
-    }
-  };
-
   const handleSchoolNameChange = (val: string) => {
     setSchoolName(val);
-    if (tenantType === 'institution') {
-      const generatedSlug = val
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '-')
-        .replace(/-+/g, '-');
-      setSlug(generatedSlug);
-    }
+    const generatedSlug = val
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '-')
+      .replace(/-+/g, '-');
+    setSlug(generatedSlug);
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -54,7 +36,6 @@ export default function RegisterPage() {
 
     try {
       await registerTenantAndAdmin({
-        tenantType, // <-- Dikirim ke backend/service
         schoolName,
         slug,
         adminName,
@@ -65,7 +46,7 @@ export default function RegisterPage() {
         schoolDays,
       });
 
-      alert(tenantType === 'individual' ? 'Registrasi ruang mandiri berhasil! Silakan login.' : 'Registrasi tenant dan akun admin berhasil! Silakan login.');
+      alert('Registrasi tenant dan akun admin berhasil! Silakan login.');
       router.replace('/login');
     } catch (err: any) {
       setErrorMessage(err.message || 'Terjadi kesalahan saat pendaftaran.');
@@ -89,6 +70,7 @@ export default function RegisterPage() {
           ></div>
         </div>
 
+        {/* Konten form di dalam card dibungkus relative agar berada di atas watermark */}
         <div className="relative z-10 space-y-6">
           
           {/* Header / Logo Section */}
@@ -102,35 +84,9 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-0.5">
-              <h1 className="text-xl font-bold tracking-tight text-slate-900">Pendaftaran Akun KelasYik</h1>
-              <p className="text-xs text-slate-500 font-medium">Pilih jalur pendaftaran sesuai kebutuhan pengajaran Anda</p>
+              <h1 className="text-xl font-bold tracking-tight text-slate-900">Daftar Sekolah Baru</h1>
+              <p className="text-xs text-slate-500 font-medium">Buat ruang tenant dan akun admin absensi Anda</p>
             </div>
-          </div>
-
-          {/* TOGGLE PILIHAN TIPE TENANT (Individual vs Institusi) */}
-          <div className="grid grid-cols-2 gap-2 bg-slate-200/60 p-1 rounded-xl">
-            <button
-              type="button"
-              onClick={() => handleTenantTypeChange('individual')}
-              className={`py-2 text-xs font-bold rounded-lg transition-all ${
-                tenantType === 'individual'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              🚀 Guru Mandiri (Individual)
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTenantTypeChange('institution')}
-              className={`py-2 text-xs font-bold rounded-lg transition-all ${
-                tenantType === 'institution'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              🏫 Institusi Sekolah
-            </button>
           </div>
 
           {errorMessage && (
@@ -140,46 +96,36 @@ export default function RegisterPage() {
           )}
 
           <form onSubmit={handleRegister} className="space-y-4">
+            {/* Grid Layout 2 Kolom */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               
-              {/* Kolom Kiri: Informasi Institusi / Ruang Kerja */}
+              {/* Kolom Kiri: Informasi Sekolah / Tenant */}
               <div className="space-y-3 p-4 bg-slate-50/80 rounded-xl border border-slate-100">
-                <h2 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">
-                  {tenantType === 'individual' ? '1. Info Ruang & Kelas' : '1. Data Institusi / Sekolah'}
-                </h2>
+                <h2 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">1. Data Institusi / Sekolah</h2>
                 
-                {tenantType === 'institution' ? (
-                  <>
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">Nama Sekolah</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Contoh: SDN Ragunan 01"
-                        value={schoolName}
-                        onChange={(e) => handleSchoolNameChange(e.target.value)}
-                        className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-600 text-slate-800"
-                      />
-                    </div>
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">Nama Sekolah</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Contoh: SDN Ragunan 01"
+                    value={schoolName}
+                    onChange={(e) => handleSchoolNameChange(e.target.value)}
+                    className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-600 text-slate-800"
+                  />
+                </div>
 
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">Slug Unik URL</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="sdn-ragunan-01"
-                        value={slug}
-                        onChange={(e) => setSlug(e.target.value)}
-                        className="w-full bg-slate-100 border border-slate-200 px-3 py-2 rounded-xl text-xs text-slate-500 focus:outline-none"
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <div className="bg-blue-50/60 p-3 rounded-xl border border-blue-100 space-y-1 text-[11px] text-blue-800">
-                    <p className="font-bold">✨ Mode Guru Mandiri (All-in)</p>
-                    <p className="text-slate-600 leading-relaxed">Anda akan mendapatkan ruang kerja independen secara instan tanpa birokrasi sekolah yang rumit.</p>
-                  </div>
-                )}
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">Slug Unik URL</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="sdn-ragunan-01"
+                    value={slug}
+                    onChange={(e) => setSlug(e.target.value)}
+                    className="w-full bg-slate-100 border border-slate-200 px-3 py-2 rounded-xl text-xs text-slate-500 focus:outline-none"
+                  />
+                </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
@@ -219,15 +165,13 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              {/* Kolom Kanan: Informasi Akun Pengajar / Admin */}
+              {/* Kolom Kanan: Informasi Akun Admin */}
               <div className="space-y-3 p-4 bg-slate-50/80 rounded-xl border border-slate-100 flex flex-col justify-between">
                 <div className="space-y-3">
-                  <h2 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">
-                    {tenantType === 'individual' ? '2. Akun Guru / Pengajar' : '2. Akun Administrator'}
-                  </h2>
+                  <h2 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">2. Akun Administrator</h2>
 
                   <div className="space-y-1">
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">Nama Lengkap</label>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">Nama Lengkap Admin</label>
                     <input
                       type="text"
                       required
@@ -243,7 +187,7 @@ export default function RegisterPage() {
                     <input
                       type="email"
                       required
-                      placeholder="guru@email.com"
+                      placeholder="admin@sekolah.sch.id"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-600 text-slate-800"
@@ -264,7 +208,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="text-[11px] text-slate-400 italic pt-2">
-                  * Pastikan data email dan password benar untuk login pertama kali.
+                  * Pastikan data email dan password benar untuk login pertama kali setelah tenant berhasil terdaftar.
                 </div>
               </div>
 
@@ -281,7 +225,7 @@ export default function RegisterPage() {
                   <span>Memproses Pendaftaran...</span>
                 </>
               ) : (
-                <span>🚀 {tenantType === 'individual' ? 'Buat Ruang Mandiri Sekarang' : 'Daftar Tenant & Akun Admin'}</span>
+                <span>🚀 Daftar Tenant & Akun Admin</span>
               )}
             </button>
           </form>
@@ -289,7 +233,7 @@ export default function RegisterPage() {
           {/* Footer Link & Branding */}
           <div className="text-center pt-3 border-t border-slate-100 space-y-2">
             <p className="text-xs text-slate-800">
-              Sudah punya akun?{' '}
+              Sudah punya akun sekolah?{' '}
               <Link href="/login" className="text-blue-600 font-bold hover:underline">
                 Masuk di sini
               </Link>

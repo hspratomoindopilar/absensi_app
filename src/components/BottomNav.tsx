@@ -8,50 +8,53 @@ export default function BottomNav() {
   const pathname = usePathname();
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
- // Daftar menu utama yang selalu nampak di bottom bar (maksimal 4 agar tidak sesak)
   const mainNavs = [
-    { href: '/teacher', label: 'Home', icon: '🏠' },
-    { href: '/teacher/settings', label: 'Settings', icon: '⚙️' },
+    { href: '/dashboard', label: 'Home', icon: '🏠' },
+    { href: '/admin/settings/schoolsetting', label: 'Settings', icon: '⚙️' },
     { href: '/teacher/rekap', label: 'Rekap', icon: '📈' },
-    { href: '/teacher/game-builder', label: 'Builder', icon: '🛠️' }, // Sesuaikan juga jika quest atau fitur lain ada di bawah path khusus, atau biarkan jika root
-    
+    { href: '/teacher/game-builder', label: 'Builder', icon: '🛠️' },
   ];
 
-  // Daftar menu tambahan / ekspansi (untuk menampung menu ke-5 sampai ke-8 atau seterusnya di masa depan)
   const extendedNavs = [
     { href: '/teacher/settings', label: 'Hari Sekolah & Libur', icon: '🏫', desc: 'Atur 5/6 hari & kalender libur' },
   ];
 
   return (
     <>
-      {/* Backdrop hitam transparan jika Bottom Sheet More terbuka */}
+      {/* Backdrop hitam transparan */}
       {isMoreOpen && (
         <div 
           onClick={() => setIsMoreOpen(false)}
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 max-w-md mx-auto transition-opacity"
+          className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs z-40 max-w-md mx-auto transition-opacity"
         />
       )}
 
-      {/* Bottom Sheet untuk Menu Tambahan (More Menu Pattern) */}
-      <div className={`fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl border-t border-slate-200 shadow-2xl z-50 max-w-md mx-auto transition-transform duration-300 ease-in-out ${
-        isMoreOpen ? 'translate-y-0' : 'translate-y-full'
-      }`}>
+      {/* Bottom Sheet untuk Menu Tambahan */}
+      <div 
+        className={`fixed bottom-0 left-0 right-0 backdrop-blur-md rounded-t-3xl border-t shadow-2xl z-50 max-w-md mx-auto transition-transform duration-300 ease-in-out ${
+          isMoreOpen ? 'translate-y-0' : 'translate-y-full'
+        }`}
+        style={{ 
+          backgroundColor: 'var(--bg-card)', 
+          borderColor: 'var(--border-theme)',
+          color: 'var(--text-main)'
+        }}
+      >
         <div className="p-4 space-y-3">
-          {/* Header Bottom Sheet */}
-          <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+          <div className="flex justify-between items-center border-b pb-2" style={{ borderColor: 'var(--border-theme)' }}>
             <div className="flex items-center gap-2">
               <span className="text-base">✨</span>
-              <h3 className="font-bold text-xs uppercase tracking-wider text-slate-700">Menu Tambahan & Pengaturan</h3>
+              <h3 className="font-bold text-xs uppercase tracking-wider" style={{ color: 'var(--text-main)' }}>Menu Tambahan & Pengaturan</h3>
             </div>
             <button 
               onClick={() => setIsMoreOpen(false)}
-              className="text-slate-400 hover:text-slate-600 font-bold text-xs bg-slate-100 px-2 py-1 rounded-lg"
+              className="font-bold text-xs px-2.5 py-1 rounded-xl transition cursor-pointer"
+              style={{ backgroundColor: 'var(--bg-card-hover)', color: 'var(--text-main)' }}
             >
               Tutup ✕
             </button>
           </div>
 
-          {/* Grid Menu Ekstra (Bisa menampung banyak menu ke bawah / scrollable jika lebih dari 6) */}
           <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto pb-2">
             {extendedNavs.map((item) => {
               const isActive = pathname === item.href;
@@ -60,16 +63,19 @@ export default function BottomNav() {
                   key={item.href}
                   href={item.href}
                   onClick={() => setIsMoreOpen(false)}
-                  className={`p-2.5 rounded-xl border text-left transition flex items-start gap-2.5 ${
-                    isActive 
-                      ? 'bg-blue-50 border-blue-200 text-blue-700' 
-                      : 'bg-slate-50 border-slate-100 text-slate-700 hover:bg-slate-100'
+                  className={`p-2.5 rounded-2xl border text-left transition flex items-start gap-2.5 ${
+                    isActive ? 'shadow-inner' : ''
                   }`}
+                  style={{
+                    backgroundColor: isActive ? 'var(--accent-btn)' : 'var(--bg-card-hover)',
+                    borderColor: 'var(--border-theme)',
+                    color: isActive ? '#ffffff' : 'var(--text-main)'
+                  }}
                 >
                   <span className="text-xl">{item.icon}</span>
                   <div>
                     <p className="font-bold text-xs leading-tight">{item.label}</p>
-                    <p className="text-[10px] text-slate-400 leading-tight mt-0.5">{item.desc}</p>
+                    <p className="text-[10px] leading-tight mt-0.5" style={{ color: isActive ? '#f1f5f9' : 'var(--text-muted)' }}>{item.desc}</p>
                   </div>
                 </Link>
               );
@@ -78,35 +84,52 @@ export default function BottomNav() {
         </div>
       </div>
 
-      {/* Bottom Nav Utama */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around py-2 px-3 shadow-lg z-30 max-w-md mx-auto">
-        {mainNavs.map((nav) => {
-          const isActive = pathname === nav.href;
-          return (
-            <Link
-              key={nav.href}
-              href={nav.href}
-              className={`flex flex-col items-center text-[10px] font-medium transition ${
-                isActive ? 'text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              <span className="text-base">{nav.icon}</span>
-              <span>{nav.label}</span>
-            </Link>
-          );
-        })}
-
-        {/* Tombol More (Titik Tiga / Menu Ekstra) */}
-        <button
-          onClick={() => setIsMoreOpen(!isMoreOpen)}
-          className={`flex flex-col items-center text-[10px] font-medium transition ${
-            isMoreOpen ? 'text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600'
-          }`}
+      {/* Bottom Nav Utama (Menyatu dengan Tema Halaman) */}
+      <div className="fixed bottom-0 left-3 right-3 max-w-md mx-auto z-30">
+        <nav 
+          className="backdrop-blur-md border rounded-2xl flex justify-around py-1 px-2 shadow-xl transition-colors duration-300"
+          style={{ 
+            backgroundColor: 'var(--bg-header)', 
+            borderColor: 'var(--border-theme)' 
+          }}
         >
-          <span className="text-base">📂</span>
-          <span>More</span>
-        </button>
-      </nav>
+          {mainNavs.map((nav) => {
+            const isActive = pathname === nav.href;
+            return (
+              <Link
+                key={nav.href}
+                href={nav.href}
+                className={`flex flex-col items-center text-[10px] transition-all px-3 py-1 rounded-xl ${
+                  isActive ? 'scale-105 shadow-inner border' : 'hover:opacity-100 opacity-80'
+                }`}
+                style={{
+                  backgroundColor: isActive ? 'var(--accent-btn)' : 'transparent',
+                  borderColor: isActive ? 'var(--border-theme)' : 'transparent',
+                  color: isActive ? '#ffffff' : '#ffffff'
+                }}
+              >
+                <span className="text-base">{nav.icon}</span>
+                <span>{nav.label}</span>
+              </Link>
+            );
+          })}
+
+          <button
+            onClick={() => setIsMoreOpen(!isMoreOpen)}
+            className={`flex flex-col items-center text-[10px] transition-all px-3 py-1 rounded-xl cursor-pointer ${
+              isMoreOpen ? 'scale-105 shadow-inner border' : 'hover:opacity-100 opacity-80'
+            }`}
+            style={{
+              backgroundColor: isMoreOpen ? 'var(--accent-btn)' : 'transparent',
+              borderColor: isMoreOpen ? 'var(--border-theme)' : 'transparent',
+              color: '#ffffff'
+            }}
+          >
+            <span className="text-base">📂</span>
+            <span>More</span>
+          </button>
+        </nav>
+      </div>
     </>
   );
 }

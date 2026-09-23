@@ -1,0 +1,44 @@
+/*@/style/admin-theme.css*/
+/* ==========================================================================
+   ADMIN / TEACHER SCOPED THEME VARIABLES (LIGHT & DARK MODE)
+   ========================================================================== */
+
+.admin-theme-root {
+  /* --- Light Mode (Default: Blue Theme Klasik) --- */
+  --bg-main: #b5d1f2;
+  --bg-header: rgba(37, 99, 235, 0.9);
+  --bg-card: #ffffff;
+  --bg-card-hover: rgba(239, 246, 255, 0.8);
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --border-theme: rgba(96, 165, 250, 0.4);
+  --border-hover-theme: #2563eb; /* Garis border tegas saat hover di light mode */
+  --accent-btn: #2563eb;
+  --accent-btn-hover: #1d4ed8;
+}
+
+.admin-theme-root[data-theme='dark'] {
+  /* --- Dark Mode (Blue Navy Elegan) --- */
+  --bg-main: #0f172a;
+  --bg-header: rgba(30, 41, 59, 0.9);
+  --bg-card: #1e293b;
+  --bg-card-hover: rgba(30, 41, 59, 0.95);
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --border-theme: rgba(51, 65, 85, 0.8);
+  --border-hover-theme: #60a5fa; /* Garis border terang kontras saat hover di dark mode */
+  --accent-btn: #3b82f6;
+  --accent-btn-hover: #2563eb;
+}
+
+/* ==========================================================================
+   GLOBAL HOVER EFFECT FOR BUTTONS / CARDS (.group)
+   ========================================================================== */
+.admin-theme-root button.group {
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+}
+
+.admin-theme-root button.group:hover {
+  background-color: var(--bg-card-hover) !important;
+  border-color: var(--border-hover-theme) !important;
+}

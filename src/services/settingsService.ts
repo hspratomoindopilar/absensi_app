@@ -13,13 +13,16 @@ export async function fetchSchoolAndClassInfo(userEmail: string) {
     .from('tenants')
     .select('school_name')
     .eq('tenant_id', userData.tenant_id)
-    .single();
+    .maybeSingle();
 
-  const { data: classData } = await supabase
+  // Ambil daftar kelas yang berelasi dengan tenant_id ini
+  const { data: classDataList } = await supabase
     .from('classes')
     .select('class_id, class_name, academic_year')
-    .eq('tenant_id', userData.tenant_id)
-    .single();
+    .eq('tenant_id', userData.tenant_id);
+
+  // Ambil kelas pertama sebagai default jika ada banyak, atau null jika kosong
+  const classData = classDataList && classDataList.length > 0 ? classDataList[0] : null;
 
   return {
     userId: userData.user_id,
@@ -79,85 +82,152 @@ export async function deleteSchoolHoliday(holidayId: string) {
   if (error) throw new Error(error.message);
 }
 
-// ==================== MANAJEMEN SISWA & IMPORT ====================
+// ==================== HARI EFEKTIF FLEKSIBEL CUSTOM ====================
 
-// Fungsi helper untuk auto-generate password sementara siswa (6 karakter)
-function generateTempPassword(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Hilangkan karakter ambigu seperti O, 0, I, 1
-  let pass = '';
-  for (let i = 0; i < 6; i++) {
-    pass += chars.charAt(Math.floor(Math.random() * chars.length));
+export async function fetchEffectiveDays(tenantId: string, classId?: string | null) {
+  let query = supabase
+    .from('tenant_effective_days')
+    .select('*')
+    .eq('tenant_id', tenantId);
+
+  if (classId !== undefined && classId !== null && classId !== 'ALL') {
+    query = query.eq('class_id', classId);
+  } else {
+    query = query.is('class_id', null);
   }
-  return pass;
-}
 
-export async function fetchStudentsManagement(tenantId: string, classId: string) {
-  const { data, error } = await supabase
-    .from('students')
-    .select('student_id, nis, full_name, gender, password')
-    .eq('tenant_id', tenantId)
-    .eq('class_id', classId)
-    .order('full_name', { ascending: true });
-
+  const { data, error } = await query;
   if (error) throw error;
   return data || [];
 }
 
-export async function addSingleStudent(tenantId: string, classId: string, nis: string, fullName: string, gender: 'L' | 'P') {
-  const tempPassword = generateTempPassword();
+/**
+ * Resolusi cerdas HES (Fallback Logic):
+ * Mengecek apakah kelas memiliki HES spesifik. 
+ * Jika ada dan aktif, gunakan itu. Jika tidak ada/kosong, otomatis fallback ke HES Global (class_id IS NULL).
+ */
+export async function resolveClassEffectiveDays(tenantId: string, classId: string) {
+  // 1. Cek data spesifik kelas
+  const specificDays = await fetchEffectiveDays(tenantId, classId);
+  
+  if (specificDays && specificDays.length > 0) {
+    return {
+      hasSpecificHES: true,
+      days: specificDays
+    };
+  }
 
-  const { error } = await supabase
-    .from('students')
-    .insert([{ 
-      tenant_id: tenantId, 
-      class_id: classId, 
-      nis, 
-      full_name: fullName, 
-      gender,
-      password: tempPassword, // Password auto-generate
-      is_first_login: true
-    }]);
-
-  if (error) throw new Error(error.message);
+  // 2. Jika tidak ada, fallback ke Global (ALL)
+  const globalDays = await fetchEffectiveDays(tenantId, null);
+  return {
+    hasSpecificHES: false,
+    days: globalDays
+  };
 }
 
-export async function deleteStudent(studentId: string) {
-  const { error } = await supabase
-    .from('students')
-    .delete()
-    .eq('student_id', studentId);
-
-  if (error) throw new Error(error.message);
-}
-
-export async function bulkUpsertStudents(
-  tenantId: string, 
-  classId: string, 
-  students: { nis: string; full_name: string; gender?: 'L' | 'P' }[]
+/**
+ * Menyimpan konfigurasi hari efektif (bisa untuk Global/ALL jika classId = null, 
+ * atau Spesifik Kelas jika classId diisi UUID kelas).
+ */
+export async function saveEffectiveDays(
+  tenantId: string,
+  classId: string | null,
+  daysConfig: { day_of_week: string; is_active: boolean }[]
 ) {
-  const records = students.map((s) => ({
+  const records = daysConfig.map((item) => ({
     tenant_id: tenantId,
-    class_id: classId,
-    nis: s.nis || '',
-    full_name: s.full_name,
-    gender: s.gender || 'L',
-    password: generateTempPassword(), // Auto-generate untuk setiap siswa baru
-    is_first_login: true,
+    class_id: classId === 'ALL' ? null : classId,
+    day_of_week: item.day_of_week,
+    is_active: item.is_active,
   }));
 
   const { error } = await supabase
-    .from('students')
-    .upsert(records, { onConflict: 'tenant_id,nis', ignoreDuplicates: false }); 
-    // Catatan: Jika pakai upsert, pastikan password lama tidak tertimpa jika NIS sudah ada, atau sesuaikan kebutuhan.
+    .from('tenant_effective_days')
+    .upsert(records, { onConflict: 'tenant_id,class_id,day_of_week' });
 
   if (error) throw new Error(error.message);
 }
 
-export async function updateStudent(studentId: string, nis: string, fullName: string, gender: 'L' | 'P') {
+/**
+ * Menghapus pengaturan spesifik kelas agar kembali tunduk total ke HES Global (ALL).
+ * (Mengubah status dari haveSpecificHES = true kembali ke false dengan menghapus override-nya).
+ */
+export async function clearClassEffectiveDays(tenantId: string, classId: string) {
   const { error } = await supabase
-    .from('students')
-    .update({ nis, full_name: fullName, gender })
-    .eq('student_id', studentId);
+    .from('tenant_effective_days')
+    .delete()
+    .eq('tenant_id', tenantId)
+    .eq('class_id', classId);
+
+  if (error) throw new Error(error.message);
+}
+
+// ==================== JADWAL KELAS & MAPEL ====================
+
+export async function fetchClassSchedules(tenantId: string, classId?: string) {
+  let query = supabase
+    .from('class_schedules')
+    .select(`
+      schedule_id,
+      tenant_id,
+      class_id,
+      day_of_week,
+      start_time,
+      end_time,
+      subjects (
+        subject_id,
+        subject_name,
+        subject_code
+      ),
+      classes (
+        class_id,
+        class_name
+      )
+    `)
+    .eq('tenant_id', tenantId);
+
+  if (classId && classId !== 'ALL') {
+    query = query.eq('class_id', classId);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+export async function addClassSchedule(
+  tenantId: string,
+  classIds: string[], // Mendukung multi-select kelas atau ['ALL']
+  subjectId: string,
+  dayOfWeek: string,
+  startTime: string,
+  endTime: string
+) {
+  const records = [];
+
+  for (const cid of classIds) {
+    records.push({
+      tenant_id: tenantId,
+      class_id: cid === 'ALL' ? null : cid,
+      subject_id: subjectId,
+      day_of_week: dayOfWeek,
+      start_time: startTime,
+      end_time: endTime,
+    });
+  }
+
+  const { error } = await supabase
+    .from('class_schedules')
+    .insert(records);
+
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteClassSchedule(scheduleId: string) {
+  const { error } = await supabase
+    .from('class_schedules')
+    .delete()
+    .eq('schedule_id', scheduleId);
 
   if (error) throw new Error(error.message);
 }

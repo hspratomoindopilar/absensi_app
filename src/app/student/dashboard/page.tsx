@@ -122,9 +122,9 @@ export default function StudentDashboard() {
                 ></div>
 
                 <div className="max-w-md mx-auto flex justify-between items-center gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0">
                         <div
-                            className="relative w-12 h-12 rounded-2xl border overflow-hidden flex items-center justify-center shrink-0 p-1 shadow-md"
+                            className="relative w-18 h-18 rounded-2xl border overflow-hidden flex items-center justify-center shrink-0 p-1 shadow-md"
                             style={{
                                 backgroundColor: 'var(--bg-main)',
                                 borderColor: 'var(--border-theme)'
@@ -160,9 +160,9 @@ export default function StudentDashboard() {
                                 </span>
                             </div>
                             <h1 className="text-base md:text-lg font-black tracking-tight truncate" style={{ color: 'var(--text-main)' }}>
-                                Halo, {studentInfo.fullName}! 👋
+                                {studentInfo.fullName}! 👋
                             </h1>
-                            <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>Siap menaklukkan misi dan ujian hari ini?</p>
+                            
                         </div>
                     </div>
 

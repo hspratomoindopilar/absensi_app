@@ -4,6 +4,7 @@ export type Student = {
   full_name: string;
   status?: string; // 'H' | 'S' | 'I' | 'A'
   gender?: 'L' | 'P';
+  is_first_login?: boolean;
 };
 
 export type AttendanceRecordPayload = {

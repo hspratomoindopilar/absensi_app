@@ -1,0 +1,33 @@
+create table public.students (
+  student_id uuid not null default gen_random_uuid (),
+  tenant_id uuid null,
+  class_id uuid null,
+  user_id uuid null,
+  nis character varying(50) not null,
+  full_name character varying(255) not null,
+  created_at timestamp with time zone not null default timezone ('utc'::text, now()),
+  gender character varying(1) null,
+  password text null,
+  is_first_login boolean null default true,
+  pob character varying(100) null,
+  dob date null,
+  address text null,
+  phone character varying(30) null,
+  hobbies text[] null default '{}'::text[],
+  social_media jsonb null default '{}'::jsonb,
+  avatar_url text null,
+  constraint students_pkey primary key (student_id),
+  constraint students_tenant_id_nis_key unique (tenant_id, nis),
+  constraint students_class_id_fkey foreign KEY (class_id) references classes (class_id) on delete CASCADE,
+  constraint students_tenant_id_fkey foreign KEY (tenant_id) references tenants (tenant_id) on delete CASCADE,
+  constraint students_user_id_fkey foreign KEY (user_id) references users (user_id) on delete set null,
+  constraint students_gender_check check (
+    (
+      (gender)::text = any (
+        (
+          array['L'::character varying, 'P'::character varying]
+        )::text[]
+      )
+    )
+  )
+) TABLESPACE pg_default;

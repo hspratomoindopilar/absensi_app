@@ -202,7 +202,7 @@ export default function StudentProfilePage() {
                 <div className="max-w-2xl mx-auto flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <div 
-                            className="relative w-18 h-18 rounded-2xl border-2 shadow-[0_0_12px_var(--border-theme)] overflow-hidden flex items-center justify-center p-1 shrink-0"
+                            className="relative w-22 h-22 rounded-2xl border-2 shadow-[0_0_12px_var(--border-theme)] overflow-hidden flex items-center justify-center p-1 shrink-0"
                             style={{ backgroundColor: 'var(--bg-main)', borderColor: 'var(--border-theme)' }}
                         >
                             <img
@@ -237,7 +237,7 @@ export default function StudentProfilePage() {
                                 borderColor: 'var(--border-theme)' 
                             }}
                         >
-                            <span>✏️</span> Edit Profil
+                            <span>✏️</span> Edit
                         </button>
                     )}
                 </div>

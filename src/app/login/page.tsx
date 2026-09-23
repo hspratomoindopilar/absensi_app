@@ -34,8 +34,8 @@ export default function LoginPage() {
       });
 
       if (error) throw error;
-
-      router.push('/');
+     
+      router.push('/dashboard'); // Diarahkan ke dashboard netral yang baru
       router.refresh();
     } catch (err: any) {
       setErrorMsg(err.message || 'Gagal masuk. Periksa kembali email dan password.');

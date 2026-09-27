@@ -35,7 +35,7 @@ export default function StudentSettingPage() {
 
     // State Modal
     const [isSingleModalOpen, setIsSingleModalOpen] = useState(false);
-    const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+    
     const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
 
     // Form Input Single Student
@@ -43,7 +43,7 @@ export default function StudentSettingPage() {
     const [nisInput, setNisInput] = useState('');
     const [nameInput, setNameInput] = useState('');
     const [genderInput, setGenderInput] = useState<'L' | 'P'>('L');
-    
+
     // State Biodata Tambahan & Foto
     const [phoneInput, setPhoneInput] = useState('');
     const [pobInput, setPobInput] = useState('');
@@ -187,40 +187,7 @@ export default function StudentSettingPage() {
         }
     };
 
-    // Handler Bulk Excel
-    const handleBulkSubmit = async () => {
-        if (!bulkRawText.trim()) {
-            alert('Data paste kosong!');
-            return;
-        }
-        try {
-            const lines = bulkRawText.split('\n');
-            const parsed: { nis: string; full_name: string; gender?: 'L' | 'P' }[] = [];
-            for (const line of lines) {
-                if (!line.trim()) continue;
-                const cols = line.split(/\t|,/);
-                if (cols.length >= 2) {
-                    parsed.push({
-                        nis: cols[0].trim(),
-                        full_name: cols[1].trim(),
-                        gender: (cols[2]?.trim().toUpperCase() === 'P' ? 'P' : 'L') as 'L' | 'P',
-                    });
-                }
-            }
-            if (parsed.length === 0) {
-                alert('Format tidak valid.');
-                return;
-            }
-            await bulkUpsertStudentsGlobal(tenantId, bulkClassId, parsed);
-            alert(`Berhasil mengimpor ${parsed.length} siswa!`);
-            setIsBulkModalOpen(false);
-            setBulkRawText('');
-            reloadStudents();
-        } catch (err: any) {
-            alert('Gagal import: ' + err.message);
-        }
-    };
-
+    
     // Handler Checkbox Select All / Single
     const toggleSelectStudent = (id: string) => {
         setSelectedStudentIds(prev =>
@@ -310,10 +277,10 @@ export default function StudentSettingPage() {
                             + Tambah Siswa
                         </button>
                         <button
-                            onClick={() => setIsBulkModalOpen(true)}
+                            onClick={() => router.push('/admin/settings/studentsetting/bulk')}
                             className="flex-1 sm:flex-none py-2 px-4 rounded-xl text-xs font-extrabold bg-amber-500 hover:bg-amber-600 text-amber-950 shadow transition cursor-pointer text-center"
                         >
-                            📋 Bulk Add (Excel)
+                            📋 Lembar Kerja Import Excel
                         </button>
                     </div>
                     <button
@@ -631,56 +598,7 @@ export default function StudentSettingPage() {
                 </div>
             )}
 
-            {/* MODAL BULK ADD (EXCEL) */}
-            {isBulkModalOpen && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl max-w-md w-full p-5 space-y-3 text-slate-800 shadow-2xl">
-                        <div className="flex justify-between items-center">
-                            <h2 className="font-extrabold text-sm uppercase">Bulk Add Siswa (Paste Excel)</h2>
-                        </div>
-                        <div>
-                            <label className="font-bold text-slate-600 text-xs block mb-1">Masukkan ke Kelas:</label>
-                            <select
-                                value={bulkClassId}
-                                onChange={(e) => setBulkClassId(e.target.value)}
-                                className="w-full p-2 border rounded-xl outline-none bg-white text-xs"
-                            >
-                                <option value="">-- Tanpa Kelas / Pilih Nanti --</option>
-                                {classList.map(c => (
-                                    <option key={c.class_id} value={c.class_id}>{c.class_name}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <p className="text-[11px] text-slate-500">
-                            Format Kolom Excel: <b>NIS</b> | <b>Nama Lengkap</b> | <b>Gender [L/P]</b>
-                        </p>
-                        <textarea
-                            rows={5}
-                            value={bulkRawText}
-                            onChange={(e) => setBulkRawText(e.target.value)}
-                            placeholder="1001	Budi Santoso	L&#10;1002	Siti Aminah	P"
-                            className="w-full p-2.5 border rounded-xl font-mono text-xs outline-none focus:border-blue-600"
-                        />
-                        <div className="flex gap-2 pt-2">
-                            <button
-                                type="button"
-                                onClick={() => setIsBulkModalOpen(false)}
-                                className="flex-1 py-2 bg-slate-200 text-slate-700 rounded-xl font-bold text-xs cursor-pointer"
-                            >
-                                Batal
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleBulkSubmit}
-                                className="flex-1 py-2 bg-amber-500 text-amber-950 rounded-xl font-bold text-xs cursor-pointer"
-                            >
-                                Proses Import Masal
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
+            
             {/* MODAL DISPATCH / PINDAH KELAS MASSAL */}
             {isDispatchModalOpen && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">

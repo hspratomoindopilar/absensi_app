@@ -1,10 +1,11 @@
+// src/services/rekapService.ts
 import { supabase } from '@/lib/supabase';
 
 export type MonthlyAttendanceSummary = {
   student_id: string;
   nis: string;
   full_name: string;
-  gender: string; // Tambahan field gender
+  gender: string;
   total_h: number;
   total_s: number;
   total_i: number;
@@ -19,7 +20,7 @@ export async function fetchMonthlyAttendanceReport(
   year: number, 
   month: number
 ): Promise<MonthlyAttendanceSummary[]> {
-  // 1. Ambil semua siswa di kelas tersebut (termasuk gender, diurutkan berdasarkan nama)
+  // 1. Ambil semua siswa di kelas tersebut (termasuk gender, diurutkan berdasarkan nama)[cite: 36]
   const { data: students, error: studentError } = await supabase
     .from('students')
     .select('student_id, nis, full_name, gender')
@@ -29,12 +30,12 @@ export async function fetchMonthlyAttendanceReport(
 
   if (studentError || !students) throw studentError;
 
-  // 2. Format rentang tanggal awal dan akhir bulan (Format: YYYY-MM-DD)
+  // 2. Format rentang tanggal awal dan akhir bulan (Format: YYYY-MM-DD)[cite: 36]
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
   const lastDay = new Date(year, month, 0).getDate();
   const endDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
 
-  // 3. Ambil data absensi dalam rentang bulan tersebut untuk tenant ini
+  // 3. Ambil data absensi dalam rentang bulan tersebut untuk tenant ini[cite: 36]
   const { data: attendanceData, error: attError } = await supabase
     .from('attendance')
     .select('student_id, status, date')
@@ -44,7 +45,7 @@ export async function fetchMonthlyAttendanceReport(
 
   if (attError) throw attError;
 
-  // 4. Petakan dan hitung akumulasi per siswa
+  // 4. Petakan dan hitung akumulasi per siswa murni berdasarkan record yang ada[cite: 36]
   const summaryMap: Record<string, { H: number; S: number; I: number; A: number }> = {};
   
   students.forEach((s) => {
@@ -60,7 +61,7 @@ export async function fetchMonthlyAttendanceReport(
     }
   });
 
-  // 5. Gabungkan ke struktur akhir
+  // 5. Gabungkan ke struktur akhir[cite: 36]
   return students.map((s) => {
     const counts = summaryMap[s.student_id] || { H: 0, S: 0, I: 0, A: 0 };
     return {
@@ -77,14 +78,14 @@ export async function fetchMonthlyAttendanceReport(
   });
 }
 
-// Fungsi baru untuk mengambil rekapitulasi berdasarkan rentang tanggal kustom
+// Fungsi untuk mengambil rekapitulasi berdasarkan rentang tanggal kustom[cite: 36]
 export async function fetchCustomRangeAttendanceReport(
   tenantId: string, 
   classId: string, 
   startDate: string, 
   endDate: string
 ): Promise<MonthlyAttendanceSummary[]> {
-  // 1. Ambil semua siswa di kelas tersebut
+  // 1. Ambil semua siswa di kelas tersebut[cite: 36]
   const { data: students, error: studentError } = await supabase
     .from('students')
     .select('student_id, nis, full_name, gender')
@@ -94,7 +95,7 @@ export async function fetchCustomRangeAttendanceReport(
 
   if (studentError || !students) throw studentError;
 
-  // 2. Ambil data absensi dalam rentang tanggal kustom
+  // 2. Ambil data absensi dalam rentang tanggal kustom[cite: 36]
   const { data: attendanceData, error: attError } = await supabase
     .from('attendance')
     .select('student_id, status, date')
@@ -104,7 +105,7 @@ export async function fetchCustomRangeAttendanceReport(
 
   if (attError) throw attError;
 
-  // 3. Petakan dan hitung akumulasi per siswa
+  // 3. Petakan dan hitung akumulasi per siswa[cite: 36]
   const summaryMap: Record<string, { H: number; S: number; I: number; A: number }> = {};
   
   students.forEach((s) => {
@@ -120,7 +121,7 @@ export async function fetchCustomRangeAttendanceReport(
     }
   });
 
-  // 4. Gabungkan ke struktur akhir
+  // 4. Gabungkan ke struktur akhir[cite: 36]
   return students.map((s) => {
     const counts = summaryMap[s.student_id] || { H: 0, S: 0, I: 0, A: 0 };
     return {

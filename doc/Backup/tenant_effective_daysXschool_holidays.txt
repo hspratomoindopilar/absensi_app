@@ -1,0 +1,26 @@
+create table public.tenant_effective_days (
+  config_id uuid not null default gen_random_uuid (),
+  tenant_id uuid null,
+  class_id uuid null,
+  day_of_week character varying(20) not null,
+  is_active boolean null default true,
+  created_at timestamp with time zone not null default timezone ('utc'::text, now()),
+  constraint tenant_effective_days_pkey primary key (config_id),
+  constraint unique_tenant_class_day unique (tenant_id, class_id, day_of_week),
+  constraint tenant_effective_days_class_id_fkey foreign KEY (class_id) references classes (class_id) on delete CASCADE,
+  constraint tenant_effective_days_tenant_id_fkey foreign KEY (tenant_id) references tenants (tenant_id) on delete CASCADE
+) TABLESPACE pg_default;
+======================================================================
+
+create table public.school_holidays (
+  holiday_id uuid not null default gen_random_uuid (),
+  tenant_id uuid not null,
+  start_date date not null,
+  end_date date not null,
+  description character varying(255) not null,
+  created_at timestamp with time zone not null default timezone ('utc'::text, now()),
+  constraint school_holidays_pkey primary key (holiday_id),
+  constraint school_holidays_tenant_id_fkey foreign KEY (tenant_id) references tenants (tenant_id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create index IF not exists idx_school_holidays_dates on public.school_holidays using btree (tenant_id, start_date, end_date) TABLESPACE pg_default;

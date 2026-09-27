@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { teacherService } from '@/services/teacherService';
 import { supabase } from '@/lib/supabase';
+import BottomNav from '@/components/BottomNav';
 import '@/style/admin-theme.css'; // Wajib menggunakan tema admin
 
 export default function TeacherSettingListPage() {
@@ -139,7 +140,7 @@ export default function TeacherSettingListPage() {
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-xl border-2 border-white/80 bg-blue-600/20 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
                     <img 
-                      src={teacher.avatar_url || '/icon/teacher.png'} 
+                      src={teacher.avatar_url || '/icon/photo_id.png'} 
                       alt={teacher.full_name} 
                       className="w-full h-full object-cover"
                       onError={(e)=>{(e.target as HTMLImageElement).src = '/icon/teacher.png'}}
@@ -172,6 +173,9 @@ export default function TeacherSettingListPage() {
         </div>
 
       </div>
+      {/* BOTTOM NAV */}
+      <BottomNav />
+      
     </div>
   );
 }

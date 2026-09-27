@@ -66,26 +66,39 @@ export async function deleteStudent(studentId: string) {
 }
 
 export async function bulkUpsertStudentsGlobal(
-  tenantId: string, 
-  classId: string, 
-  students: { nis: string; full_name: string; gender?: 'L' | 'P'; photo_url?: string }[]
+    tenantId: string, 
+    classId: string, 
+    students: { 
+        nis: string; 
+        full_name: string; 
+        gender?: 'L' | 'P'; 
+        phone?: string;
+        pob?: string;
+        dob?: string;
+        address?: string;
+        photo_url?: string 
+    }[]
 ) {
-  const records = students.map((s) => ({
-    tenant_id: tenantId,
-    class_id: classId || null,
-    nis: s.nis || '',
-    full_name: s.full_name,
-    gender: s.gender || 'L',
-    photo_url: s.photo_url || null,
-    password: generateTempPassword(),
-    is_first_login: true,
-  }));
+    const records = students.map((s) => ({
+        tenant_id: tenantId,
+        class_id: classId || null,
+        nis: s.nis || '',
+        full_name: s.full_name,
+        gender: s.gender || 'L',
+        phone: s.phone || null,
+        pob: s.pob || null,
+        dob: s.dob || null,
+        address: s.address || null,
+        photo_url: s.photo_url || null,
+        password: generateTempPassword(),
+        is_first_login: true,
+    }));
 
-  const { error } = await supabase
-    .from('students')
-    .upsert(records, { onConflict: 'tenant_id,nis', ignoreDuplicates: false }); 
+    const { error } = await supabase
+        .from('students')
+        .upsert(records, { onConflict: 'tenant_id,nis', ignoreDuplicates: false }); 
 
-  if (error) throw new Error(error.message);
+    if (error) throw new Error(error.message);
 }
 
 // Fungsi untuk update kelas siswa secara massal (Dispatch / Move Class)

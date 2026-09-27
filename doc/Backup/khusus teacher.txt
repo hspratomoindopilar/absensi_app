@@ -130,6 +130,7 @@ export default function ManageClassesPage() {
         const matchesSearch = cls.class_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             cls.grade_level?.toLowerCase().includes(searchQuery.toLowerCase());
         
+        // Jika role guru dan tab 'mine', tampilkan kelasnya saja. Jika tab 'all' (jika diizinkan), atau admin.
         if (activeTab === 'mine' || isUserTeacher) {
             return matchesSearch && cls.isMyClass;
         }
@@ -264,7 +265,7 @@ export default function ManageClassesPage() {
                                     <th className="p-3">Grade</th>
                                     <th className="p-3">Kapasitas</th>
                                     <th className="p-3">Status / PIC</th>
-                                    {!isUserTeacher && <th className="p-3 text-center">Aksi</th>}
+                                    <th className="p-3 text-center">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y text-xs" style={{ borderColor: 'var(--border-theme)' }}>
@@ -290,27 +291,25 @@ export default function ManageClassesPage() {
                                                 </span>
                                             </td>
 
-                                            {!isUserTeacher && (
-                                                <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
-                                                    <a
-                                                        href={`/admin/classes/edit/${cls.class_id}`}
-                                                        className="inline-block px-2.5 py-1 rounded-lg text-[11px] font-bold transition border shadow-sm hover:opacity-80"
-                                                        style={{
-                                                            backgroundColor: 'var(--bg-card-hover)',
-                                                            borderColor: 'var(--border-theme)',
-                                                            color: 'var(--text-main)'
-                                                        }}
-                                                    >
-                                                        ✏️ Edit
-                                                    </a>
-                                                </td>
-                                            )}
+                                            <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
+                                                <button
+                                                    onClick={() => router.push(`/teacher/classes/${cls.class_id}`)}
+                                                    className="inline-block px-2.5 py-1 rounded-lg text-[11px] font-bold transition border shadow-sm hover:opacity-80"
+                                                    style={{
+                                                        backgroundColor: 'var(--bg-card-hover)',
+                                                        borderColor: 'var(--border-theme)',
+                                                        color: 'var(--text-main)'
+                                                    }}
+                                                >
+                                                    👁️ Buka
+                                                </button>
+                                            </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={isUserTeacher ? 4 : 5} className="p-6 text-center italic text-xs" style={{ color: 'var(--text-muted)' }}>
-                                            Tidak ada data kelas ditemukan.
+                                        <td colSpan={5} className="p-6 text-center italic text-xs" style={{ color: 'var(--text-muted)' }}>
+                                            Tidak ada data kelas binaan ditemukan.
                                         </td>
                                     </tr>
                                 )}
@@ -347,7 +346,7 @@ export default function ManageClassesPage() {
                 </div>
             </div>
 
-            {/* BOTTOM NAV */}
+            {/* BOTTOM NAV (Menyesuaikan Role: Teacher menggunakan Bottom Nav khusus guru atau BottomNav standar admin) */}
             {isUserTeacher ? <TeacherBottomNav /> : <BottomNav />}
         </div>
     );

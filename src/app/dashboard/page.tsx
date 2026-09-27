@@ -5,7 +5,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { fetchSchoolAndClassInfo } from '@/services/attendanceService';
 import BottomNav from '@/components/BottomNav';
 import '@/style/admin-theme.css'; // <-- Import CSS Tema Admin
 
@@ -13,20 +12,17 @@ export default function TeacherDashboard() {
   const [loading, setLoading] = useState(true);
 
   const [profile, setProfile] = useState({
-    name: 'Hafiz Setyo Pratomo',
-    email: 'peacetokrates@gmail.com',
-    nip: 'ID / NIP : 1988...',
-    avatarUrl: '/tomothink-logo.png',
-    tenantName: 'Ruang Mandiri Guru',
+    name: 'Loading...',
+    email: 'Loading...',
+    nip: 'Memuat NIP...',
+    avatarUrl: '/icon/photo_id.png',
+    tenantName: 'Memuat Sekolah...',
+    role: 'Memuat Role...',
   });
 
   const [isRoleOpen, setIsRoleOpen] = useState(false);
-  const [roles, setRoles] = useState([
-    { id: '1', name: 'Guru Kelas / Pengajar Utama (All-in)', active: true },
-  ]);
-
+  
   const router = useRouter();
-
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
@@ -40,16 +36,36 @@ export default function TeacherDashboard() {
           return;
         }
 
-        const info = await fetchSchoolAndClassInfo(session.user.email);
-        if (info) {
-          setProfile({
-            name: info.teacherName || 'Guru Pengajar',
-            email: session.user.email,
-            nip: 'ID / Tenant Active',
-            avatarUrl: '/tomothink-logo.png',
-            tenantName: info.schoolName,
-          });
+        // Ambil data user beserta nama sekolah (tenant) dari database
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select(`
+            full_name,
+            email,
+            nip,
+            avatar_url,
+            role,
+            tenants ( school_name )
+          `)
+          .eq('email', session.user.email)
+          .single();
+
+        if (userError || !userData) {
+            console.error('Gagal memuat detail user:', userError);
+            return;
         }
+
+        const tenantData = Array.isArray(userData.tenants) ? userData.tenants[0] : userData.tenants;
+
+        setProfile({
+          name: userData.full_name || 'Tanpa Nama',
+          email: userData.email,
+          nip: userData.nip ? `NIP: ${userData.nip}` : 'NIP Tidak Tersedia',
+          avatarUrl: userData.avatar_url || '/icon/photo_id.png',
+          tenantName: tenantData?.school_name || 'Sekolah Tidak Diketahui',
+          role: userData.role || 'Role Tidak Diketahui'
+        });
+
       } catch (err) {
         console.error('Gagal memuat profil:', err);
       } finally {
@@ -108,36 +124,33 @@ export default function TeacherDashboard() {
           className="backdrop-blur-md rounded-2xl p-4 shadow-lg border space-y-3 relative transition-colors duration-300"
           style={{ backgroundColor: 'var(--bg-header)', borderColor: 'var(--border-theme)' }}
         >
-          {/* 🏷️ STICKER PENANDA HEADER UTAMA */}
-          <div className="absolute top-3 right-3 z-10">
-            <span className="bg-amber-400 text-amber-950 text-[9px] font-extrabold px-2 py-0.5 rounded shadow-md uppercase tracking-wider border border-amber-500 animate-pulse">
-              ⚠️ Header Mock/Hardcode
-            </span>
+          {/* Nama Sekolah (Tenant) di bagian paling atas */}
+          <div className="absolute top-2 left-4 right-16 flex justify-start">
+             <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-300 bg-emerald-900/30 px-2 py-0.5 rounded-md border border-emerald-500/20 truncate max-w-full">
+                🏫 {profile.tenantName}
+             </span>
           </div>
 
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center justify-between pt-5">
             <div className="flex items-center gap-3">
               <div className="relative w-16 h-16 rounded-xl overflow-hidden border-2 border-white/80 shadow-md bg-white shrink-0">
                 <img 
                   src={profile.avatarUrl} 
                   alt="Profile" 
                   className="w-full h-full object-cover"
-                  onError={(e)=>{(e.target as HTMLImageElement).src = 'https://via.placeholder.com/150'}}
+                  onError={(e)=>{(e.target as HTMLImageElement).src = '/icon/photo_id.png'}}
                 />
-                <span className="absolute bottom-0 inset-x-0 bg-amber-500 text-amber-950 text-[7px] font-bold text-center">MOCK IMG</span>
               </div>
 
-              <div className="space-y-0.5 text-white">
+              <div className="space-y-0.5 text-white overflow-hidden">
                 <div className="flex items-center gap-1.5">
-                  <h1 className="font-bold text-sm tracking-tight leading-tight">{profile.name}</h1>
-                  <span className="bg-amber-400 text-amber-950 text-[8px] font-bold px-1 rounded">Hardcode Name</span>
+                  <h1 className="font-bold text-sm tracking-tight leading-tight truncate">{profile.name}</h1>
                 </div>
                 <p className="text-[11px] opacity-90 truncate max-w-[160px]">{profile.email}</p>
-                <div className="flex items-center gap-1.5">
-                  <span className="inline-block text-[10px] bg-black/20 px-2 py-0.5 rounded font-mono border border-white/20">
+                <div className="flex items-center gap-1.5 pt-0.5">
+                  <span className="inline-block text-[10px] bg-black/20 px-2 py-0.5 rounded font-mono border border-white/20 truncate max-w-[150px]">
                     {profile.nip}
                   </span>
-                  <span className="bg-amber-400/80 text-amber-950 text-[8px] font-bold px-1 rounded">Static NIP</span>
                 </div>
               </div>
             </div>
@@ -154,30 +167,25 @@ export default function TeacherDashboard() {
           </div>
 
           {/* TOMBOL MY ROLE & DROPDOWN */}
-          <div className="relative pt-1 border-t border-white/20 flex items-center justify-between">
+          <div className="relative pt-2 border-t border-white/20 flex items-center justify-between">
             <div className="relative inline-block">
               <button
                 onClick={() => setIsRoleOpen(!isRoleOpen)}
                 className="bg-black/30 hover:bg-black/40 text-white text-[10px] font-bold px-3 py-1 rounded-lg shadow border border-white/20 flex items-center gap-1.5 transition cursor-pointer"
               >
                 <span>My Role</span>
-                {/* 🏷️ STICKER PENANDA HARDCODE */}
-                <span className="bg-amber-400 text-amber-950 text-[8px] font-extrabold px-1.5 py-0.2 rounded uppercase">Mock State</span>
                 <span className={`transition-transform duration-200 text-[9px] ${isRoleOpen ? 'rotate-90' : ''}`}>▶</span>
               </button>
 
               {isRoleOpen && (
-                <div className="absolute left-full top-0 ml-2 w-56 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 z-50 text-slate-700 space-y-1">
+                <div className="absolute left-full top-0 ml-2 w-48 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 z-50 text-slate-700 space-y-1">
                   <div className="px-3 py-1 border-b border-slate-100 text-[9px] uppercase font-bold text-slate-400 tracking-wider flex justify-between items-center">
                     <span>Daftar Peran Aktif:</span>
-                    <span className="bg-amber-100 text-amber-800 text-[8px] px-1 rounded">Hardcode</span>
                   </div>
-                  {roles.map((r, idx) => (
-                    <div key={idx} className="px-3 py-1.5 text-xs font-semibold flex items-center justify-between bg-blue-50/50 text-blue-900">
-                      <span>{r.name}</span>
+                    <div className="px-3 py-1.5 text-xs font-semibold flex items-center justify-between bg-blue-50/50 text-blue-900">
+                      <span className="uppercase">{profile.role}</span>
                       <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold">Aktif</span>
                     </div>
-                  ))}
                 </div>
               )}
             </div>
@@ -235,7 +243,7 @@ export default function TeacherDashboard() {
 
           {/* Menu 3: Daftar Guru (Sudah Terhubung) */}
           <button
-            onClick={() => router.push('/admin/settings/teachersetting')} // <-- Ubah ke rute ini
+            onClick={() => router.push('/admin/settings/teachersetting')}
             className="w-full active:scale-[0.99] transition-all p-1 rounded-2xl shadow-md border flex items-center justify-between group cursor-pointer relative"
             style={{ 
               backgroundColor: 'var(--bg-card)', 
@@ -248,7 +256,6 @@ export default function TeacherDashboard() {
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-extrabold text-sm tracking-wide uppercase" style={{ color: 'var(--text-main)' }}>DAFTAR GURU</span>
-                {/* 🏷️ STICKER PENANDA */}
                 <span className="bg-emerald-500/20 text-emerald-500 text-[9px] font-extrabold px-1.5 py-0.5 rounded border border-emerald-500/30">Connected</span>
               </div>
             </div>
@@ -295,8 +302,7 @@ export default function TeacherDashboard() {
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-extrabold text-sm tracking-wide uppercase" style={{ color: 'var(--text-main)' }}>[DLL ....] / Canvas</span>
-                {/* 🏷️ STICKER PENANDA */}
-                <span className="bg-amber-400 text-amber-950 text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow-sm">HARDCODE / MOCK</span>
+                <span className="bg-amber-400 text-amber-950 text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow-sm">COMING SOON</span>
               </div>
             </div>
             <div className="w-8 h-8 rounded-full flex items-center justify-center mr-1 group-hover:translate-x-0.5 transition-transform" style={{ color: 'var(--text-muted)' }}>

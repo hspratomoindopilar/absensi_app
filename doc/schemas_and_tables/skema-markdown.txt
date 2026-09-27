@@ -67,6 +67,7 @@
 | `hobbies` | `_text` |  Nullable |
 | `social_media` | `jsonb` |  Nullable |
 | `avatar_url` | `text` |  Nullable |
+| `photo_url` | `text` |  Nullable |
 
 ## Table `attendance`
 
@@ -230,6 +231,20 @@
 | `teacher_id` | `uuid` |  Nullable |
 | `activity_name` | `varchar` |  Nullable |
 
+## Table `student_class_history`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `history_id` | `uuid` | Primary |
+| `tenant_id` | `uuid` |  Nullable |
+| `student_id` | `uuid` |  Nullable |
+| `class_id` | `uuid` |  Nullable |
+| `academic_year` | `varchar` |  Nullable |
+| `is_active` | `bool` |  Nullable |
+| `created_at` | `timestamptz` |  Nullable |
+
 ## RLS Policies
 
 ### `school_holidays`
@@ -300,6 +315,12 @@
 |--------|---------|-------|--------|-------|------------|
 | `Tenant isolation for tenant_effective_days` | ALL | public | PERMISSIVE | `(tenant_id = get_user_tenant_id())` | — |
 
+### `student_class_history`
+
+| Policy | Command | Roles | Action | USING | WITH CHECK |
+|--------|---------|-------|--------|-------|------------|
+| `Tenant isolation for student_class_history` | ALL | public | PERMISSIVE | `(tenant_id = get_user_tenant_id())` | — |
+
 ### `class_schedules`
 
 | Policy | Command | Roles | Action | USING | WITH CHECK |
@@ -311,4 +332,10 @@
 | Policy | Command | Roles | Action | USING | WITH CHECK |
 |--------|---------|-------|--------|-------|------------|
 | `Enable all access for authenticated users based on tenant` | ALL | public | PERMISSIVE | `true` | `true` |
+
+### `teacher_classes`
+
+| Policy | Command | Roles | Action | USING | WITH CHECK |
+|--------|---------|-------|--------|-------|------------|
+| `Enable all access for teacher_classes based on tenant` | ALL | public | PERMISSIVE | `true` | `true` |
 

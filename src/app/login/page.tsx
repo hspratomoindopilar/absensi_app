@@ -21,21 +21,55 @@ export default function LoginPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const router = useRouter();
 
-  // Handler Login Guru (Eksisting)
+  // Handler Login dengan Pemilahan Role yang Akurat sesuai Database
   const handleTeacherLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setErrorMsg('');
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
-     
-      router.push('/dashboard'); // Diarahkan ke dashboard netral yang baru
+      if (authError) throw authError;
+      if (!authData.user || !authData.user.email) throw new Error('Gagal mendapatkan sesi pengguna.');
+
+      // Ambil data user untuk cek role di database
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('role')
+        .eq('email', authData.user.email)
+        .single();
+
+      if (userError || !userData) {
+        throw new Error('Data profil pengguna tidak ditemukan.');
+      }
+
+      // Normalisasi teks role dengan tetap menjaga format aslinya dari DB
+      const role = (userData.role || '').toLowerCase().trim();
+
+      // 1. Cek Full Akses (general admin & co-general-admin)
+      const isFullAdmin = role === 'general admin' || role === 'co-general-admin';
+      
+      // 2. Cek Role Admin Khusus (Akan diatur terpisah nanti)
+      const isRestrictedAdmin = role === 'admin';
+
+      // 3. Cek Role Guru
+      const isTeacher = role === 'teacher' || role === 'guru';
+
+      // Redirect berdasarkan hak akses masing-masing entitas
+      if (isFullAdmin) {
+        router.push('/dashboard'); // Rute utama Full Akses Admin
+      } else if (isTeacher) {
+        router.push('/teacher/profile'); // Rute utama khusus Guru (Daftar Kelas Binaan)
+      } else if (isRestrictedAdmin) {
+        router.push('/dashboard'); // Sementara diarahkan ke dashboard (menunggu aturan khusus 'admin')
+      } else {
+        router.push('/dashboard'); // Fallback aman
+      }
+
       router.refresh();
     } catch (err: any) {
       setErrorMsg(err.message || 'Gagal masuk. Periksa kembali email dan password.');

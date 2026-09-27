@@ -10,8 +10,9 @@ import {
   fetchAttendanceByDate,
   saveAttendanceRecords,
 } from '@/services/attendanceService';
-import { fetchTenantSettings, fetchSchoolHolidays } from '@/services/settingsService';
+import { fetchTenantSettings, fetchSchoolHolidays, resolveClassEffectiveDays } from '@/services/settingsService';
 import BottomNav from '@/components/BottomNav';
+import TeacherBottomNav from '@/components/TeacherBottomNav'; // Import Bottom Nav khusus Teacher
 import '@/style/admin-theme.css';
 
 export default function ClassAttendancePage() {
@@ -26,6 +27,7 @@ export default function ClassAttendancePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [isUserTeacher, setIsUserTeacher] = useState(false); // State untuk mendeteksi role teacher
 
   const todayString = new Date().toISOString().split('T')[0];
   const [tempDate, setTempDate] = useState(todayString);
@@ -70,20 +72,21 @@ export default function ClassAttendancePage() {
 
         const { data: userData } = await supabase
           .from('users')
-          .select('user_id, tenant_id')
+          .select('user_id, tenant_id, role')
           .eq('email', session.user.email)
           .single();
 
         if (!userData) return;
+
+        const roleLower = (userData.role || '').toLowerCase();
+        const teacherCheck = roleLower.includes('teacher') || roleLower.includes('guru') || (!roleLower.includes('admin') && !roleLower.includes('general'));
+        setIsUserTeacher(teacherCheck);
 
         const { data: classData } = await supabase
           .from('classes')
           .select('class_name')
           .eq('class_id', classId)
           .single();
-
-        const settings = await fetchTenantSettings(userData.tenant_id);
-        const currentSchoolDays = settings.school_days;
 
         setSessionData({
           userId: userData.user_id,
@@ -92,19 +95,43 @@ export default function ClassAttendancePage() {
         });
 
         const dateObj = new Date(selectedDate);
-        const dayOfWeek = dateObj.getDay();
-        const isSunday = dayOfWeek === 0;
-        const isSaturdayOff = dayOfWeek === 6 && currentSchoolDays === 5;
+        const dayOfWeekIdx = dateObj.getDay(); 
+        const isSunday = dayOfWeekIdx === 0;
 
+        // Nama hari (huruf kecil) untuk dicocokkan dengan db
+        const daysMap = ['minggu', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu'];
+        const currentDayStr = daysMap[dayOfWeekIdx];
+
+        let isHoliday = false;
+        let holidayName = '';
+
+        // 1. Cek Cuti / Libur Nasional (School Holidays)
         const holidays = await fetchSchoolHolidays(userData.tenant_id);
         const matchedHoliday = holidays.find(
           (h) => selectedDate >= h.start_date && selectedDate <= h.end_date
         );
 
-        const isHoliday = !!matchedHoliday || isSunday || isSaturdayOff;
-        let holidayName = matchedHoliday ? matchedHoliday.description : '';
-        if (isSunday) holidayName = 'Hari Minggu (Libur)';
-        if (isSaturdayOff) holidayName = 'Libur Akhir Pekan';
+        if (matchedHoliday) {
+            isHoliday = true;
+            holidayName = matchedHoliday.description;
+        } else if (isSunday) {
+            isHoliday = true;
+            holidayName = 'Hari Minggu (Libur Default)';
+        } else {
+            // 2. Evaluasi Hari Efektif Sekolah menggunakan Fallback Logic
+            const effectiveDaysData = await resolveClassEffectiveDays(userData.tenant_id, classId);
+            const activeDays = effectiveDaysData.days
+                .filter((d: any) => d.is_active)
+                .map((d: any) => d.day_of_week.toLowerCase());
+            
+            // Jika hari saat ini TIDAK ada dalam daftar hari aktif, maka itu adalah hari libur kelas.
+            if (!activeDays.includes(currentDayStr)) {
+                isHoliday = true;
+                holidayName = effectiveDaysData.hasSpecificHES 
+                    ? `Libur Kelas Spesifik (${currentDayStr})` 
+                    : `Libur Sekolah Global (${currentDayStr})`;
+            }
+        }
 
         setDayStatus({
           isHoliday,
@@ -113,6 +140,7 @@ export default function ClassAttendancePage() {
           isSchoolDay: !isHoliday,
         });
 
+        // 3. Muat Data Siswa & Riwayat Absensi
         const dataSiswa = await fetchStudentsByTenant(userData.tenant_id, classId);
         const statusMap = await fetchAttendanceByDate(userData.tenant_id, classId, selectedDate);
 
@@ -406,8 +434,8 @@ export default function ClassAttendancePage() {
         )}
       </div>
 
-      {/* 3. BOTTOM NAV MENTOK DI BAWAH (Fixed) */}
-      <BottomNav />
+      {/* 3. BOTTOM NAV KONDISIONAL DI BAWAH (Fixed) */}
+      {isUserTeacher ? <TeacherBottomNav /> : <BottomNav />}
     </div>
   );
 }

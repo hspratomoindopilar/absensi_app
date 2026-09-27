@@ -9,10 +9,12 @@ import GameBuilder from '@/modules/fun-learning/components/GameBuilder';
 import EditGameBuilder from '@/modules/fun-learning/components/EditGameBuilder';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
+import TeacherBottomNav from '@/components/TeacherBottomNav'; // Import Bottom Nav khusus Teacher
 import { Library, Trash2, Edit3, Plus, BookOpen, Sparkles } from 'lucide-react';
 
 export default function TeacherGameBuilderPage() {
     const [loading, setLoading] = useState(true);
+    const [isUserTeacher, setIsUserTeacher] = useState(false); // State untuk mendeteksi role teacher
     const [sessionData, setSessionData] = useState({
         userId: '',
         tenantId: '',
@@ -36,6 +38,19 @@ export default function TeacherGameBuilderPage() {
                 if (sessionError || !session || !session.user.email) {
                     router.replace('/login');
                     return;
+                }
+
+                // Ambil data user untuk cek role
+                const { data: userData } = await supabase
+                    .from('users')
+                    .select('role')
+                    .eq('email', session.user.email)
+                    .single();
+
+                if (userData) {
+                    const roleLower = (userData.role || '').toLowerCase();
+                    const teacherCheck = roleLower.includes('teacher') || roleLower.includes('guru') || (!roleLower.includes('admin') && !roleLower.includes('general'));
+                    setIsUserTeacher(teacherCheck);
                 }
 
                 const info = await fetchSchoolAndClassInfo(session.user.email);
@@ -210,7 +225,9 @@ export default function TeacherGameBuilderPage() {
                     />
                 )}
             </main>
-            <BottomNav />
+
+            {/* Bottom Nav Kondisional */}
+            {isUserTeacher ? <TeacherBottomNav /> : <BottomNav />}
         </div>
     );
 }

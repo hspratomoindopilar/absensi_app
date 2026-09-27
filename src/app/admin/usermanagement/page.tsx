@@ -208,10 +208,20 @@ export default function UserManagementPage() {
                 setSuccessMsg('Data pengguna berhasil diperbarui!');
 
             } else {
-                // --- PROSES TAMBAH (Cara Wajar & Standar) ---
-                // Generate UUID v4 sederhana untuk user_id baru
-                const generatedId = crypto.randomUUID ? crypto.randomUUID() : 'user_' + Date.now();
+                // --- PROSES TAMBAH (Daftar ke Supabase Auth & Tabel Users) ---
+                
+                // 1. Daftarkan akun ke Supabase Auth agar kredensial (email & password) valid untuk login
+                const { data: authData, error: authError } = await supabase.auth.signUp({
+                    email: email,
+                    password: password,
+                });
 
+                if (authError) throw new Error('Gagal mendaftarkan Auth: ' + authError.message);
+                if (!authData.user) throw new Error('Gagal membuat akun auth.');
+
+                const generatedId = authData.user.id; // Mengambil UUID asli yang digenerate oleh Supabase Auth
+
+                // 2. Masukkan data profil lengkap ke tabel public.users menggunakan ID yang sama
                 const { error: insertError } = await supabase
                     .from('users')
                     .insert([{
@@ -227,8 +237,8 @@ export default function UserManagementPage() {
                         avatar_url: avatarUrl || null,
                     }]);
 
-                if (insertError) throw new Error(insertError.message);
-                setSuccessMsg('Pengguna baru berhasil ditambahkan!');
+                if (insertError) throw new Error('Gagal menyimpan profil: ' + insertError.message);
+                setSuccessMsg('Pengguna baru berhasil ditambahkan dan didaftarkan ke sistem login!');
             }
 
             await fetchUsersList(tenantId);

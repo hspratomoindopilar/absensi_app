@@ -48,6 +48,9 @@ export default function UserManagementPage() {
     const [address, setAddress] = useState('');
     const [education, setEducation] = useState('');
     const [avatarUrl, setAvatarUrl] = useState('');
+    
+    const [avatarFile, setAvatarFile] = useState<File | null>(null);
+    const [avatarPreview, setAvatarPreview] = useState<string>('');
 
     //search-filter-pagination
     const [searchTerm, setSearchTerm] = useState('');
@@ -154,6 +157,8 @@ export default function UserManagementPage() {
         setAddress('');
         setEducation('');
         setAvatarUrl('');
+        setAvatarFile(null);
+        setAvatarPreview('');
         setErrorMsg('');
         setSuccessMsg('');
         setIsModalOpen(true);
@@ -164,13 +169,15 @@ export default function UserManagementPage() {
         setSelectedUserId(user.user_id);
         setFullName(user.full_name || '');
         setEmail(user.email || '');
-        setPassword(''); // Password dikosongkan saat edit
+        setPassword('');
         setRole(user.role || 'teacher');
         setNip(user.nip || '');
         setPhone(user.phone || '');
         setAddress(user.address || '');
         setEducation(user.education || '');
         setAvatarUrl(user.avatar_url || '');
+        setAvatarFile(null);
+        setAvatarPreview(user.avatar_url || '');
         setErrorMsg('');
         setSuccessMsg('');
         setIsModalOpen(true);
@@ -189,6 +196,28 @@ export default function UserManagementPage() {
                 throw new Error('Tenant institusi hanya diizinkan memiliki 1 Co-General Admin.');
             }
 
+            let finalAvatarUrl = avatarUrl;
+
+            // --- PROSES UPLOAD FOTO KE BUCKET 'teacherphotos' ---
+            if (avatarFile) {
+                const fileExt = avatarFile.name.split('.').pop();
+                const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+                const filePath = `${fileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('teacherphotos')
+                    .upload(filePath, avatarFile);
+
+                if (uploadError) throw new Error('Gagal mengunggah foto: ' + uploadError.message);
+
+                // Ambil Public URL dari file yang diupload
+                const { data: publicUrlData } = supabase.storage
+                    .from('teacherphotos')
+                    .getPublicUrl(filePath);
+
+                finalAvatarUrl = publicUrlData.publicUrl;
+            }
+
             if (isEditMode) {
                 // --- PROSES EDIT ---
                 const { error: updateError } = await supabase
@@ -200,7 +229,7 @@ export default function UserManagementPage() {
                         phone: phone || null,
                         address: address || null,
                         education: education || null,
-                        avatar_url: avatarUrl || null,
+                        avatar_url: finalAvatarUrl || null,
                     })
                     .eq('user_id', selectedUserId);
 
@@ -208,9 +237,7 @@ export default function UserManagementPage() {
                 setSuccessMsg('Data pengguna berhasil diperbarui!');
 
             } else {
-                // --- PROSES TAMBAH (Daftar ke Supabase Auth & Tabel Users) ---
-                
-                // 1. Daftarkan akun ke Supabase Auth agar kredensial (email & password) valid untuk login
+                // --- PROSES TAMBAH ---
                 const { data: authData, error: authError } = await supabase.auth.signUp({
                     email: email,
                     password: password,
@@ -219,9 +246,8 @@ export default function UserManagementPage() {
                 if (authError) throw new Error('Gagal mendaftarkan Auth: ' + authError.message);
                 if (!authData.user) throw new Error('Gagal membuat akun auth.');
 
-                const generatedId = authData.user.id; // Mengambil UUID asli yang digenerate oleh Supabase Auth
+                const generatedId = authData.user.id;
 
-                // 2. Masukkan data profil lengkap ke tabel public.users menggunakan ID yang sama
                 const { error: insertError } = await supabase
                     .from('users')
                     .insert([{
@@ -234,11 +260,11 @@ export default function UserManagementPage() {
                         phone: phone || null,
                         address: address || null,
                         education: education || null,
-                        avatar_url: avatarUrl || null,
+                        avatar_url: finalAvatarUrl || null,
                     }]);
 
                 if (insertError) throw new Error('Gagal menyimpan profil: ' + insertError.message);
-                setSuccessMsg('Pengguna baru berhasil ditambahkan dan didaftarkan ke sistem login!');
+                setSuccessMsg('Pengguna baru berhasil ditambahkan!');
             }
 
             await fetchUsersList(tenantId);
@@ -599,6 +625,34 @@ export default function UserManagementPage() {
                                     className="w-full px-3 py-2 rounded-xl text-xs border bg-transparent focus:outline-none"
                                     style={{ borderColor: 'var(--border-theme)' }}
                                 />
+                            </div>
+
+                            {/* INPUT FOTO PROFIL */}
+                            <div>
+                                <label className="block text-[11px] font-bold uppercase opacity-80 mb-1">Foto Profil (Opsional)</label>
+                                <div className="flex items-center gap-3">
+                                    {avatarPreview ? (
+                                        <div className="w-12 h-12 rounded-xl overflow-hidden border border-slate-300 shrink-0 bg-white">
+                                            <img src={avatarPreview} alt="Preview" className="w-full h-full object-cover" />
+                                        </div>
+                                    ) : (
+                                        <div className="w-12 h-12 rounded-xl border border-dashed border-slate-400 flex items-center justify-center text-xs opacity-50 shrink-0">
+                                            📷
+                                        </div>
+                                    )}
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                setAvatarFile(file);
+                                                setAvatarPreview(URL.createObjectURL(file));
+                                            }
+                                        }}
+                                        className="w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-cyan-500/20 file:text-cyan-500 hover:file:bg-cyan-500/30 cursor-pointer"
+                                    />
+                                </div>
                             </div>
 
                             <button

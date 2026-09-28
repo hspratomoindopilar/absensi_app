@@ -138,7 +138,7 @@ export default function TeacherSettingListPage() {
                 style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-theme)' }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl border-2 border-white/80 bg-blue-600/20 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+                  <div className="w-18 h-18 rounded-xl border-2 border-white/80 bg-blue-600/20 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
                     <img 
                       src={teacher.avatar_url || '/icon/photo_id.png'} 
                       alt={teacher.full_name} 

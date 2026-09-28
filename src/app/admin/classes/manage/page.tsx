@@ -77,7 +77,10 @@ export default function ManageClassesPage() {
                         grade_level,
                         capacity,
                         homeroom_teacher_id,
-                        tenant_id
+                        tenant_id,
+                        users:homeroom_teacher_id (
+                            full_name
+                        )
                     `)
                     .eq('tenant_id', userData.tenant_id);
 
@@ -92,13 +95,26 @@ export default function ManageClassesPage() {
 
                     const assignedClassIds = teacherClasses?.map(tc => tc.class_id) || [];
 
-                    const formatted = (classesData || []).map((cls) => {
+                    const formatted = (classesData || []).map((cls: any) => {
                         const isHomeroom = cls.homeroom_teacher_id === userData.user_id;
                         const isAssigned = assignedClassIds.includes(cls.class_id);
+                        
+                        // Ambil nama wali kelas dari hasil join relasi users
+                        const homeroomName = cls.users?.full_name;
+
+                        let picText = 'Belum ada';
+                        if (isHomeroom) {
+                            picText = 'Anda (Wali Kelas)';
+                        } else if (homeroomName) {
+                            picText = `${homeroomName}`;
+                        } else if (isAssigned) {
+                            picText = 'Pengajar Mapel';
+                        }
+
                         return {
                             ...cls,
                             isMyClass: isHomeroom || isAssigned,
-                            picText: isHomeroom ? 'Anda (Wali Kelas)' : (isAssigned ? 'Pengajar Mapel' : 'Guru Lain')
+                            picText: picText
                         };
                     });
 

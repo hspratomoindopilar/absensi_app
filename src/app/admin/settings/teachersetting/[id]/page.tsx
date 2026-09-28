@@ -39,6 +39,9 @@ export default function TeacherDetailPage() {
     const [isHomeroomOpen, setIsHomeroomOpen] = useState(false);
     const [isTeachingOpen, setIsTeachingOpen] = useState(false);
 
+    // Filter kelas yang belum memiliki wali kelas (homeroom_teacher_id masih kosong)
+    const availableHomeroomClasses = allClasses.filter((cls) => !cls.homeroom_teacher_id);
+
     // Ambil daftar unique grade_level dari data kelas yang ada
     const uniqueGrades = Array.from(new Set(allClasses.map((c) => c.grade_level).filter(Boolean)));
 
@@ -267,7 +270,7 @@ export default function TeacherDetailPage() {
                     </div>
 
                     <div className="flex items-center gap-3 pt-1">
-                        <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-white/85 shadow-md bg-white shrink-0">
+                        <div className="w-24 h-24 rounded-xl overflow-hidden border-2 border-white/85 shadow-md bg-white shrink-0">
                             <img
                                 src={teacher.avatar_url || '/icon/photo_id.png'}
                                 alt="Avatar"
@@ -349,7 +352,8 @@ export default function TeacherDetailPage() {
                                     className="flex-1 px-3 py-1.5 text-xs rounded-xl border border-slate-300 bg-white text-slate-800 focus:outline-none"
                                 >
                                     <option value="">-- Pilih Kelas untuk Wali --</option>
-                                    {allClasses.map((cls) => (
+                                    {/* Menggunakan availableHomeroomClasses agar kelas yang sudah ada walinya tidak muncul */}
+                                    {availableHomeroomClasses.map((cls) => (
                                         <option key={cls.class_id} value={cls.class_id}>
                                             {cls.class_name} {cls.grade_level ? `(Tingkat ${cls.grade_level})` : ''}
                                         </option>
@@ -480,8 +484,8 @@ export default function TeacherDetailPage() {
 
             </div>
             {/* BOTTOM NAV */}
-             <BottomNav />
+            <BottomNav />
         </div>
-        
+
     );
 }

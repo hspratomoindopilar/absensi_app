@@ -36,7 +36,11 @@ export async function addSingleStudentToClass(
   nis: string, 
   fullName: string, 
   gender: 'L' | 'P',
-  photoUrl?: string
+  photoUrl?: string,
+  pob?: string,     // Tambahan
+  dob?: string,     // Tambahan
+  address?: string, // Tambahan
+  phone?: string    // Tambahan
 ) {
   const tempPassword = generateTempPassword();
 
@@ -50,7 +54,11 @@ export async function addSingleStudentToClass(
       gender,
       photo_url: photoUrl || null,
       password: tempPassword,
-      is_first_login: true
+      is_first_login: true,
+      pob: pob || null,         // Tambahan
+      dob: dob || null,         // Tambahan
+      address: address || null, // Tambahan
+      phone: phone || null      // Tambahan
     }]);
 
   if (error) throw new Error(error.message);

@@ -1,3 +1,4 @@
+// src/app/admin/usermanagement/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -42,6 +43,7 @@ export default function UserManagementPage() {
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false); // State untuk show/hide password
     const [role, setRole] = useState('teacher');
     const [nip, setNip] = useState('');
     const [phone, setPhone] = useState('');
@@ -151,6 +153,7 @@ export default function UserManagementPage() {
         setFullName('');
         setEmail('');
         setPassword('');
+        setShowPassword(false);
         setRole('teacher');
         setNip('');
         setPhone('');
@@ -170,6 +173,7 @@ export default function UserManagementPage() {
         setFullName(user.full_name || '');
         setEmail(user.email || '');
         setPassword('');
+        setShowPassword(false);
         setRole(user.role || 'teacher');
         setNip(user.nip || '');
         setPhone(user.phone || '');
@@ -537,15 +541,25 @@ export default function UserManagementPage() {
                             {!isEditMode && (
                                 <div>
                                     <label className="block text-[11px] font-bold uppercase opacity-80 mb-1">Password Sementara *</label>
-                                    <input
-                                        type="password"
-                                        required
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        placeholder="Minimal 6 karakter"
-                                        className="w-full px-3 py-2 rounded-xl text-xs border bg-transparent focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                                        style={{ borderColor: 'var(--border-theme)' }}
-                                    />
+                                    <div className="relative">
+                                        <input
+                                            type={showPassword ? 'text' : 'password'}
+                                            required
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            placeholder="Minimal 6 karakter"
+                                            className="w-full px-3 py-2 pr-9 rounded-xl text-xs border bg-transparent focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                                            style={{ borderColor: 'var(--border-theme)' }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs opacity-60 hover:opacity-100 cursor-pointer"
+                                            title={showPassword ? 'Sembunyikan Password' : 'Tampilkan Password'}
+                                        >
+                                            {showPassword ? '🙈' : '👁️'}
+                                        </button>
+                                    </div>
                                 </div>
                             )}
 

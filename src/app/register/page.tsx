@@ -17,10 +17,12 @@ export default function RegisterPage() {
   const [className, setClassName] = useState('Kelas 5B');
   const [academicYear, setAcademicYear] = useState('2026/2027');
   const [schoolDays, setSchoolDays] = useState(5);
-  
+
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const router = useRouter();
+
+  const [showPassword, setShowPassword] = useState(false);
 
   // Handler dinamis saat tipe tenant berubah
   const handleTenantTypeChange = (type: 'individual' | 'institution') => {
@@ -75,12 +77,12 @@ export default function RegisterPage() {
   };
 
   return (
-    <div 
+    <div
       className="min-h-screen flex items-center justify-center p-4 font-sans antialiased"
       style={{ backgroundImage: 'linear-gradient(126.6deg, rgba(44,115,210,1) 3.4%, rgba(251,234,255,1) 127.9%)' }}
     >
       <div className="max-w-2xl w-full bg-white/85 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-100 p-8 space-y-6 my-6 relative overflow-hidden">
-        
+
         {/* WATERMARK LOGO TOMOTH!NK DI BAWAH */}
         <div className="absolute bottom-6 inset-x-0 flex justify-center pointer-events-none z-0">
           <div
@@ -90,13 +92,13 @@ export default function RegisterPage() {
         </div>
 
         <div className="relative z-10 space-y-6">
-          
+
           {/* Header / Logo Section */}
           <div className="text-center space-y-1.5">
             <div className="mx-auto w-54 h-20 flex items-center justify-center">
-              <img 
-                src="/kelasyikapp-logo.png" 
-                alt="Logo KelasYik" 
+              <img
+                src="/kelasyikapp-logo.png"
+                alt="Logo KelasYik"
                 className="w-full h-full object-contain drop-shadow-sm"
               />
             </div>
@@ -112,22 +114,20 @@ export default function RegisterPage() {
             <button
               type="button"
               onClick={() => handleTenantTypeChange('individual')}
-              className={`py-2 text-xs font-bold rounded-lg transition-all ${
-                tenantType === 'individual'
+              className={`py-2 text-xs font-bold rounded-lg transition-all ${tenantType === 'individual'
                   ? 'bg-white text-blue-600 shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               🚀 Guru Mandiri (Individual)
             </button>
             <button
               type="button"
               onClick={() => handleTenantTypeChange('institution')}
-              className={`py-2 text-xs font-bold rounded-lg transition-all ${
-                tenantType === 'institution'
+              className={`py-2 text-xs font-bold rounded-lg transition-all ${tenantType === 'institution'
                   ? 'bg-white text-blue-600 shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               🏫 Institusi Sekolah
             </button>
@@ -141,13 +141,13 @@ export default function RegisterPage() {
 
           <form onSubmit={handleRegister} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              
+
               {/* Kolom Kiri: Informasi Institusi / Ruang Kerja */}
               <div className="space-y-3 p-4 bg-slate-50/80 rounded-xl border border-slate-100">
                 <h2 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">
                   {tenantType === 'individual' ? '1. Info Ruang & Kelas' : '1. Data Institusi / Sekolah'}
                 </h2>
-                
+
                 {tenantType === 'institution' ? (
                   <>
                     <div className="space-y-1">
@@ -250,16 +250,26 @@ export default function RegisterPage() {
                     />
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">Password</label>
-                    <input
-                      type="password"
-                      required
-                      placeholder="Minimal 6 karakter"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-600 text-slate-800"
-                    />
+                  <div className="space-y-1.5 relative">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Password Baru</label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'} // Tipe berubah dinamis sesuai state
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Minimal 6 karakter"
+                        className="w-full bg-slate-50 px-4 py-3 pr-10 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition-all text-slate-800 placeholder:text-slate-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm focus:outline-none cursor-pointer"
+                        title={showPassword ? 'Sembunyikan Password' : 'Tampilkan Password'}
+                      >
+                        {showPassword ? '🙈' : '👁️'}
+                      </button>
+                    </div>
                   </div>
                 </div>
 

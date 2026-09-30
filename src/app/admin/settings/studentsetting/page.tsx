@@ -166,7 +166,11 @@ export default function StudentSettingPage() {
                 nisInput,
                 nameInput,
                 genderInput,
-                finalPhotoUrl // Masukkan URL hasil upload storage
+                finalPhotoUrl,
+                pobInput,     // Masukkan state POB
+                dobInput,     // Masukkan state DOB
+                addressInput, // Masukkan state Address
+                phoneInput    // Masukkan state Phone
             );
 
             alert('Siswa berhasil ditambahkan!');

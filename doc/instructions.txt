@@ -1,0 +1,5 @@
+oke tahan dulu tunggu instruksi gw,  tolong perhatikan ketentuan dibawah ini,  
+ketentuan untuk konstruksi halaman :
+1. pakai src\style\admin-theme.css
+2. Dalam prosesnya tentu ada saja yg sifatnya masih mockup/hardcode tolong beri label/sticker di UI nya dan juga sisi kodenya ada penanda
+

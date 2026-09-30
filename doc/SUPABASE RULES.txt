@@ -1,0 +1,16 @@
+NEW Rules of Supabase
+
+-- Memberikan akses baca (SELECT) untuk pengguna anonim/umum (tanpa login)
+GRANT SELECT 
+ON public.nama_tabel_mu 
+TO anon;
+
+-- Memberikan akses penuh untuk pengguna yang sudah login
+GRANT SELECT, INSERT, UPDATE, DELETE 
+ON public.nama_tabel_mu 
+TO authenticated;
+
+-- Memberikan akses penuh untuk backend / service role
+GRANT SELECT, INSERT, UPDATE, DELETE 
+ON public.nama_tabel_mu 
+TO service_role;

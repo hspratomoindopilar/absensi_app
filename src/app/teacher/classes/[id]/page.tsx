@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { fetchClassAttendanceSummary } from '@/services/attendanceService';
 import BottomNav from '@/components/BottomNav';
 import TeacherBottomNav from '@/components/TeacherBottomNav'; // Import Bottom Nav khusus Teacher
 import '@/style/admin-theme.css';
@@ -32,6 +33,8 @@ export default function ClassDashboardPage() {
 
   // State Modal
   const [activeModal, setActiveModal] = useState<'students' | 'teachers' | null>(null);
+
+  const [attendanceSummary, setAttendanceSummary] = useState({ hadir: 0, sakit: 0, izin: 0, alpa: 0, total: 0 });
 
   useEffect(() => {
     const savedTheme = (localStorage.getItem('admin_active_theme') as 'light' | 'dark') || 'light';
@@ -92,6 +95,13 @@ export default function ClassDashboardPage() {
                     `)
           .eq('class_id', classId);
         setTeachers(tchData || []);
+
+        // Ambil data rekap absensi hari ini
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (clsData?.tenant_id) {
+          const summary = await fetchClassAttendanceSummary(clsData.tenant_id, classId, todayStr);
+          setAttendanceSummary(summary);
+        }
 
       } catch (error) {
         console.error("Gagal memuat dashboard kelas:", error);
@@ -215,19 +225,19 @@ export default function ClassDashboardPage() {
           <div className="grid grid-cols-4 gap-2 text-center bg-black/5 dark:bg-white/5 rounded-xl p-2 border border-slate-200/20">
             <div className="space-y-1">
               <p className="text-[10px] font-bold px-1 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">HADIR</p>
-              <p className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">0</p>
+              <p className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">{attendanceSummary.hadir}</p>
             </div>
             <div className="space-y-1">
               <p className="text-[10px] font-bold px-1 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">SAKIT</p>
-              <p className="text-sm font-extrabold text-amber-500 dark:text-amber-400">0</p>
+              <p className="text-sm font-extrabold text-amber-500 dark:text-amber-400">{attendanceSummary.sakit}</p>
             </div>
             <div className="space-y-1">
               <p className="text-[10px] font-bold px-1 py-0.5 rounded bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">IZIN</p>
-              <p className="text-sm font-extrabold text-blue-500 dark:text-blue-400">0</p>
+              <p className="text-sm font-extrabold text-blue-500 dark:text-blue-400">{attendanceSummary.izin}</p>
             </div>
             <div className="space-y-1">
               <p className="text-[10px] font-bold px-1 py-0.5 rounded bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300">ALPA</p>
-              <p className="text-sm font-extrabold text-rose-500 dark:text-rose-400">0</p>
+              <p className="text-sm font-extrabold text-rose-500 dark:text-rose-400">{attendanceSummary.alpa}</p>
             </div>
           </div>
         </div>

@@ -1,3 +1,4 @@
+// src/app/login/page.tsx
 'use client';
 
 import { useState } from 'react';
@@ -8,24 +9,28 @@ import { authenticateStudent } from '@/services/studentAuthService';
 
 export default function LoginPage() {
   const [loginRole, setLoginRole] = useState<'teacher' | 'student'>('teacher');
-  
+
   // State Guru
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  
+
   // State Siswa
   const [nis, setNis] = useState('');
   const [studentPassword, setStudentPassword] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState(''); // <-- State untuk info sukses kirim email reset
   const router = useRouter();
 
-  // Handler Login dengan Pemilahan Role yang Akurat sesuai Database
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Handler Login Guru
   const handleTeacherLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setErrorMsg('');
+    setSuccessMsg('');
 
     try {
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -36,7 +41,6 @@ export default function LoginPage() {
       if (authError) throw authError;
       if (!authData.user || !authData.user.email) throw new Error('Gagal mendapatkan sesi pengguna.');
 
-      // Ambil data user untuk cek role di database
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('role')
@@ -47,27 +51,19 @@ export default function LoginPage() {
         throw new Error('Data profil pengguna tidak ditemukan.');
       }
 
-      // Normalisasi teks role dengan tetap menjaga format aslinya dari DB
       const role = (userData.role || '').toLowerCase().trim();
-
-      // 1. Cek Full Akses (general admin & co-general-admin)
       const isFullAdmin = role === 'general admin' || role === 'co-general-admin';
-      
-      // 2. Cek Role Admin Khusus (Akan diatur terpisah nanti)
       const isRestrictedAdmin = role === 'admin';
-
-      // 3. Cek Role Guru
       const isTeacher = role === 'teacher' || role === 'guru';
 
-      // Redirect berdasarkan hak akses masing-masing entitas
       if (isFullAdmin) {
-        router.push('/dashboard'); // Rute utama Full Akses Admin
+        router.push('/dashboard');
       } else if (isTeacher) {
-        router.push('/teacher/profile'); // Rute utama khusus Guru (Daftar Kelas Binaan)
+        router.push('/teacher/profile');
       } else if (isRestrictedAdmin) {
-        router.push('/dashboard'); // Sementara diarahkan ke dashboard (menunggu aturan khusus 'admin')
+        router.push('/dashboard');
       } else {
-        router.push('/dashboard'); // Fallback aman
+        router.push('/dashboard');
       }
 
       router.refresh();
@@ -78,25 +74,48 @@ export default function LoginPage() {
     }
   };
 
-  // Handler Login Siswa (Custom Auth ke tabel students)
+  // Handler Lupa Password Guru
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setErrorMsg('Masukkan terlebih dahulu email Anda pada kolom di atas untuk reset password.');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/update-password`, // Mengarah ke halaman pembaruan password
+      });
+
+      if (error) throw error;
+      setSuccessMsg('Instruksi pemulihan password telah dikirim ke email Anda. Silakan cek kotak masuk.');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Gagal mengirim email pemulihan.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handler Login Siswa
   const handleStudentLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setErrorMsg('');
+    setSuccessMsg('');
 
     try {
       const studentData = await authenticateStudent(nis, studentPassword);
-
-      // Ambil nama kelas dari relasi tabel classes, jadikan Mawar69 sebagai cadangan aman jika kosong
       const className = studentData.classes?.class_name || 'Mawar69';
 
-      // Simpan sesi dengan nama kelas yang valid sesuai database
       localStorage.setItem('kelasyik_student_session', JSON.stringify({
         studentId: studentData.student_id,
         fullName: studentData.full_name,
         nis: studentData.nis,
         tenantId: studentData.tenant_id,
-        studentClass: className, 
+        studentClass: className,
       }));
 
       if (studentData.is_first_login) {
@@ -131,9 +150,9 @@ export default function LoginPage() {
           {/* Header Logo */}
           <div className="text-center space-y-1.5">
             <div className="mx-auto w-54 h-20 flex items-center justify-center">
-              <img 
-                src="/kelasyikapp-logo.png" 
-                alt="Logo KelasYik" 
+              <img
+                src="/kelasyikapp-logo.png"
+                alt="Logo KelasYik"
                 className="w-full h-full object-contain drop-shadow-sm"
               />
             </div>
@@ -147,23 +166,21 @@ export default function LoginPage() {
           <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
             <button
               type="button"
-              onClick={() => { setLoginRole('teacher'); setErrorMsg(''); }}
-              className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${
-                loginRole === 'teacher'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              onClick={() => { setLoginRole('teacher'); setErrorMsg(''); setSuccessMsg(''); }}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${loginRole === 'teacher'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               👨‍🏫 Masuk Guru / Admin
             </button>
             <button
               type="button"
-              onClick={() => { setLoginRole('student'); setErrorMsg(''); }}
-              className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${
-                loginRole === 'student'
-                  ? 'bg-sky-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              onClick={() => { setLoginRole('student'); setErrorMsg(''); setSuccessMsg(''); }}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${loginRole === 'student'
+                ? 'bg-sky-600 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               🎓 Masuk Siswa
             </button>
@@ -173,6 +190,13 @@ export default function LoginPage() {
           {errorMsg && (
             <div className="bg-rose-50 border-l-4 border-rose-500 text-rose-700 text-xs p-3 rounded-r-xl font-medium">
               {errorMsg}
+            </div>
+          )}
+
+          {/* Success Alert */}
+          {successMsg && (
+            <div className="bg-emerald-50 border-l-4 border-emerald-500 text-emerald-700 text-xs p-3 rounded-r-xl font-medium">
+              {successMsg}
             </div>
           )}
 
@@ -192,15 +216,37 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Password</label>
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full bg-slate-50 px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition-all text-slate-800 placeholder:text-slate-400"
-                />
+                <div className="flex justify-between items-center">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Password</label>
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    className="text-[11px] text-blue-600 hover:underline font-bold cursor-pointer"
+                  >
+                    Lupa Password?
+                  </button>
+                </div>
+                <div className="space-y-1.5 relative">
+
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'} // Tipe berubah dinamis sesuai state
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Minimal 6 karakter"
+                      className="w-full bg-slate-50 px-4 py-3 pr-10 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition-all text-slate-800 placeholder:text-slate-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm focus:outline-none cursor-pointer"
+                      title={showPassword ? 'Sembunyikan Password' : 'Tampilkan Password'}
+                    >
+                      {showPassword ? '🙈' : '👁️'}
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <button
@@ -212,7 +258,7 @@ export default function LoginPage() {
               </button>
             </form>
           ) : (
-          /* FORM LOGIN SISWA */
+            /* FORM LOGIN SISWA */
             <form onSubmit={handleStudentLogin} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Nomor Induk Siswa (NIS)</label>
@@ -226,19 +272,26 @@ export default function LoginPage() {
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Password</label>
-                <input
-                  type="password"
-                  required
-                  value={studentPassword}
-                  onChange={(e) => setStudentPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full bg-slate-50 px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white transition-all text-slate-800 placeholder:text-slate-400 font-mono"
-                />
-                <p className="text-[11px] text-slate-500 font-medium pt-0.5">
-                  * Untuk login pertama kali, password diberikan oleh wali kelas / admin.
-                </p>
+              <div className="space-y-1.5 relative">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Password Baru</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'} // Tipe berubah dinamis sesuai state
+                    required
+                    value={password}
+                    onChange={(e) => setStudentPassword(e.target.value)}
+                    placeholder="Minimal 6 karakter"
+                    className="w-full bg-slate-50 px-4 py-3 pr-10 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition-all text-slate-800 placeholder:text-slate-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm focus:outline-none cursor-pointer"
+                    title={showPassword ? 'Sembunyikan Password' : 'Tampilkan Password'}
+                  >
+                    {showPassword ? '🙈' : '👁️'}
+                  </button>
+                </div>
               </div>
 
               <button

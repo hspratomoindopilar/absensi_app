@@ -68,7 +68,7 @@ export default function ManageClassesPage() {
                     setActiveTab('mine');
                 }
 
-                // 3. Ambil data kelas berdasarkan tenant
+                // 3. Ambil data kelas berdasarkan tenant beserta relasi tahun ajarannya
                 const { data: classesData, error: classError } = await supabase
                     .from('classes')
                     .select(`
@@ -78,8 +78,12 @@ export default function ManageClassesPage() {
                         capacity,
                         homeroom_teacher_id,
                         tenant_id,
+                        academic_year_id,
                         users:homeroom_teacher_id (
                             full_name
+                        ),
+                        academic_years:academic_year_id (
+                            year_name
                         )
                     `)
                     .eq('tenant_id', userData.tenant_id);
@@ -99,8 +103,9 @@ export default function ManageClassesPage() {
                         const isHomeroom = cls.homeroom_teacher_id === userData.user_id;
                         const isAssigned = assignedClassIds.includes(cls.class_id);
                         
-                        // Ambil nama wali kelas dari hasil join relasi users
                         const homeroomName = cls.users?.full_name;
+                        // Ambil nama tahun ajaran dari hasil join
+                        const academicYearName = cls.academic_years?.year_name || 'Belum diatur';
 
                         let picText = 'Belum ada';
                         if (isHomeroom) {
@@ -114,7 +119,8 @@ export default function ManageClassesPage() {
                         return {
                             ...cls,
                             isMyClass: isHomeroom || isAssigned,
-                            picText: picText
+                            picText: picText,
+                            academicYearName: academicYearName // Masukkan ke object
                         };
                     });
 
@@ -278,6 +284,7 @@ export default function ManageClassesPage() {
                                 <tr className="bg-blue-600 text-white text-[11px] font-bold uppercase tracking-wider">
                                     <th className="p-3">Nama Kelas</th>
                                     <th className="p-3">Grade</th>
+                                    <th className="p-3">Tahun Ajaran</th>
                                     <th className="p-3">Kapasitas</th>
                                     <th className="p-3">Status / PIC</th>
                                     {!isUserTeacher && <th className="p-3 text-center">Aksi</th>}
@@ -296,6 +303,8 @@ export default function ManageClassesPage() {
                                         >
                                             <td className="p-3 font-bold" style={{ color: 'var(--accent-btn)' }}>{cls.class_name}</td>
                                             <td className="p-3" style={{ color: 'var(--text-muted)' }}>{cls.grade_level || '-'}</td>
+                                            {/* Render Nama Tahun Ajaran dari Master Data */}
+                                            <td className="p-3 font-semibold" style={{ color: 'var(--text-main)' }}>{cls.academicYearName}</td>
                                             <td className="p-3" style={{ color: 'var(--text-muted)' }}>{cls.capacity ? `${cls.capacity} Siswa` : '-'}</td>
                                             <td className="p-3">
                                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${cls.isMyClass
@@ -325,7 +334,7 @@ export default function ManageClassesPage() {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={isUserTeacher ? 4 : 5} className="p-6 text-center italic text-xs" style={{ color: 'var(--text-muted)' }}>
+                                        <td colSpan={isUserTeacher ? 5 : 6} className="p-6 text-center italic text-xs" style={{ color: 'var(--text-muted)' }}>
                                             Tidak ada data kelas ditemukan.
                                         </td>
                                     </tr>

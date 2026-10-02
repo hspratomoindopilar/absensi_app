@@ -43,6 +43,10 @@ export default function ScheduleSettingPage() {
 
     const [dailySchedulesAllClasses, setDailySchedulesAllClasses] = useState<any[]>([]);
 
+    const [activeAcademicYearName, setActiveAcademicYearName] = useState<string>('');
+
+    
+
     useEffect(() => {
         const savedTheme = (localStorage.getItem('admin_active_theme') as 'light' | 'dark') || 'light';
         setTheme(savedTheme);
@@ -56,6 +60,18 @@ export default function ScheduleSettingPage() {
                 if (!userData?.tenant_id) return;
 
                 setTenantId(userData.tenant_id);
+
+                // Ambil tahun ajaran aktif untuk ditampilkan di header
+                const { data: activeAy } = await supabase
+                    .from('academic_years')
+                    .select('year_name')
+                    .eq('tenant_id', userData.tenant_id)
+                    .eq('is_active', true)
+                    .single();
+
+                if (activeAy) {
+                    setActiveAcademicYearName(activeAy.year_name);
+                }
 
                 const masterData = await scheduleService.fetchScheduleMasterData(userData.tenant_id);
                 setClassList(masterData.classes);
@@ -441,7 +457,14 @@ export default function ScheduleSettingPage() {
 
                 <div className="rounded-2xl p-4 sm:p-5 shadow-md border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-theme)' }}>
                     <div>
-                        <h1 className="font-extrabold text-sm sm:text-base uppercase tracking-wide">Smart Roster Akademik</h1>
+                        <div className="flex items-center gap-2">
+                            <h1 className="font-extrabold text-sm sm:text-base uppercase tracking-wide">Smart Roster Akademik</h1>
+                            {activeAcademicYearName && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                                    TA: {activeAcademicYearName}
+                                </span>
+                            )}
+                        </div>
                         <p className="text-xs mt-0.5 opacity-80">Pantau dan kelola jadwal per kelas secara terpusat.</p>
                     </div>
 

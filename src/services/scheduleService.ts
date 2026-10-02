@@ -11,6 +11,19 @@ export interface ScheduleItemInput {
 }
 
 export const scheduleService = {
+    // Helper: Ambil academic_year_id yang sedang aktif (is_active = true) untuk tenant
+    async getActiveAcademicYearId(tenantId: string): Promise<string | null> {
+        const { data, error } = await supabase
+            .from('academic_years')
+            .select('academic_year_id')
+            .eq('tenant_id', tenantId)
+            .eq('is_active', true)
+            .single();
+
+        if (error || !data) return null;
+        return data.academic_year_id;
+    },
+
     // 1. GATE HES: Ambil daftar hari efektif untuk kelas tertentu
     async fetchActiveDaysForClass(tenantId: string, classId: string) {
         let { data, error } = await supabase
@@ -65,9 +78,11 @@ export const scheduleService = {
         });
     },
 
-    // 3. LOAD SCHEDULE: Ambil jadwal yang sudah ada untuk Kelas dan Hari tertentu
+    // 3. LOAD SCHEDULE: Ambil jadwal berdasarkan Kelas, Hari, dan Tahun Ajaran Aktif
     async fetchScheduleByDay(tenantId: string, classId: string, dayOfWeek: string) {
-        const { data, error } = await supabase
+        const activeAyId = await this.getActiveAcademicYearId(tenantId);
+
+        let query = supabase
             .from('class_schedules')
             .select(`
                 schedule_id,
@@ -76,23 +91,30 @@ export const scheduleService = {
                 activity_name,
                 start_time,
                 end_time,
+                academic_year_id,
                 users ( full_name ),
                 subjects ( subject_name )
             `)
             .eq('tenant_id', tenantId)
             .eq('class_id', classId)
-            .eq('day_of_week', dayOfWeek)
-            .order('start_time', { ascending: true });
+            .eq('day_of_week', dayOfWeek);
+
+        if (activeAyId) {
+            query = query.eq('academic_year_id', activeAyId);
+        }
+
+        const { data, error } = await query.order('start_time', { ascending: true });
 
         if (error) throw error;
         return data;
     },
 
-    // 4. ANTI-BENTROK: Validasi apakah guru sudah mengajar di kelas lain pada jam yang sama
+    // 4. ANTI-BENTROK: Validasi apakah guru sudah mengajar di kelas lain pada jam yang sama di tahun ajaran aktif
     async checkTeacherOverlap(tenantId: string, teacherId: string, dayOfWeek: string, startTime: string, endTime: string, currentClassId: string) {
         if (!teacherId) return null;
+        const activeAyId = await this.getActiveAcademicYearId(tenantId);
 
-        const { data, error } = await supabase
+        let query = supabase
             .from('class_schedules')
             .select('class_id, classes(class_name), start_time, end_time')
             .eq('tenant_id', tenantId)
@@ -102,6 +124,12 @@ export const scheduleService = {
             .lt('start_time', endTime)
             .gt('end_time', startTime);
 
+        if (activeAyId) {
+            query = query.eq('academic_year_id', activeAyId);
+        }
+
+        const { data, error } = await query;
+
         if (error) throw error;
 
         if (data && data.length > 0) {
@@ -110,14 +138,21 @@ export const scheduleService = {
         return null;
     },
 
-    // 5. BATCH SUBMISSION: Simpan seluruh rangkaian blok jadwal satu hari penuh
+    // 5. BATCH SUBMISSION: Simpan seluruh rangkaian blok jadwal dengan menyertakan academic_year_id aktif
     async saveBatchScheduleDay(tenantId: string, classId: string, dayOfWeek: string, scheduleItems: ScheduleItemInput[]) {
+        const activeAyId = await this.getActiveAcademicYearId(tenantId);
+        if (!activeAyId) {
+            throw new Error('Tidak dapat menyimpan jadwal karena belum ada Tahun Ajaran aktif.');
+        }
+
+        // Hapus jadwal lama berdasarkan tenant, class, day, dan academic_year_id
         const { error: deleteError } = await supabase
             .from('class_schedules')
             .delete()
             .eq('tenant_id', tenantId)
             .eq('class_id', classId)
-            .eq('day_of_week', dayOfWeek);
+            .eq('day_of_week', dayOfWeek)
+            .eq('academic_year_id', activeAyId);
 
         if (deleteError) throw new Error('Gagal membersihkan jadwal lama: ' + deleteError.message);
 
@@ -131,7 +166,8 @@ export const scheduleService = {
             teacher_id: item.teacher_id || null,
             activity_name: item.activity_name || null,
             start_time: item.start_time,
-            end_time: item.end_time
+            end_time: item.end_time,
+            academic_year_id: activeAyId // Menyertakan relasi master academic_year_id
         }));
 
         const { error: insertError } = await supabase
@@ -141,7 +177,7 @@ export const scheduleService = {
         if (insertError) throw new Error('Gagal menyimpan jadwal baru: ' + insertError.message);
 
         return true;
-    }, // <--- Koma inilah yang biasanya terlewat saat copy-paste
+    },
 
     // 6. MASTER DATA: Ambil data referensi (Kelas, Mapel, Guru) sekaligus
     async fetchScheduleMasterData(tenantId: string) {
@@ -162,13 +198,21 @@ export const scheduleService = {
         };
     },
 
-    // 7. RADAR DATA: Ambil seluruh jadwal tenant di hari tertentu lintas kelas
+    // 7. RADAR DATA: Ambil seluruh jadwal tenant di hari tertentu lintas kelas berdasarkan tahun ajaran aktif
     async fetchDailySchedulesAllClasses(tenantId: string, dayOfWeek: string) {
-        const { data, error } = await supabase
+        const activeAyId = await this.getActiveAcademicYearId(tenantId);
+
+        let query = supabase
             .from('class_schedules')
             .select('class_id, teacher_id, start_time, end_time, classes(class_name)')
             .eq('tenant_id', tenantId)
             .eq('day_of_week', dayOfWeek);
+
+        if (activeAyId) {
+            query = query.eq('academic_year_id', activeAyId);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
         return data || [];

@@ -5,39 +5,42 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import '@/style/admin-theme.css'; // <-- Import CSS Tema Admin
+import { academicYearService } from '@/services/settingsService'; // <-- Jembatan layanan
+import '@/style/admin-theme.css'; 
 
 export default function EditClassPage() {
   const router = useRouter();
   const params = useParams();
-  const classId = params.id; // Mengambil ID dari dynamic route /admin/classes/edit/[id]
+  const classId = params.id; 
 
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light'); // State Theme Switcher
+  const [theme, setTheme] = useState<'light' | 'dark'>('light'); 
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [teachersList, setTeachersList] = useState<any[]>([]);
 
-  // State Form
+  // --- STATE ACADEMIC YEAR ---
+  const [academicYears, setAcademicYears] = useState<any[]>([]); // Opsi referensi
+  
   const [className, setClassName] = useState('');
   const [gradeLevel, setGradeLevel] = useState('');
   const [capacity, setCapacity] = useState('36');
   const [homeroomTeacherId, setHomeroomTeacherId] = useState('');
-  const [academicYear, setAcademicYear] = useState('2025/2026');
+  
+  // State untuk menyimpan ID referensi 
+  const [academicYearId, setAcademicYearId] = useState('');
 
   useEffect(() => {
     const savedTheme = (localStorage.getItem('admin_active_theme') as 'light' | 'dark') || 'light';
     setTheme(savedTheme);
     async function initData() {
       try {
-        // 1. Ambil session user aktif
         const { data: { session } } = await supabase.auth.getSession();
         if (!session || !session.user.email) {
           router.replace('/login');
           return;
         }
 
-        // 2. Ambil tenant_id user yang sedang login
         const { data: userData } = await supabase
           .from('users')
           .select('tenant_id')
@@ -47,16 +50,18 @@ export default function EditClassPage() {
         if (userData?.tenant_id) {
           setTenantId(userData.tenant_id);
 
-          // 3. Ambil daftar guru untuk opsi Wali Kelas
           const { data: teachers } = await supabase
             .from('users')
             .select('user_id, full_name')
             .eq('tenant_id', userData.tenant_id);
 
           setTeachersList(teachers || []);
+
+          // Memuat daftar referensi tahun ajaran
+          const ayList = await academicYearService.fetchAcademicYears(userData.tenant_id);
+          setAcademicYears(ayList || []);
         }
 
-        // 4. Ambil data kelas berdasarkan ID yang akan diedit
         if (classId) {
           const { data: classData, error } = await supabase
             .from('classes')
@@ -71,7 +76,9 @@ export default function EditClassPage() {
             setGradeLevel(classData.grade_level || '');
             setCapacity(classData.capacity ? classData.capacity.toString() : '');
             setHomeroomTeacherId(classData.homeroom_teacher_id || '');
-            setAcademicYear(classData.academic_year || '2025/2026');
+            
+            // Set ID tahun ajaran berdasarkan data kelas yang tersimpan
+            setAcademicYearId(classData.academic_year_id || '');
           }
         }
       } catch (err) {
@@ -96,6 +103,12 @@ export default function EditClassPage() {
       alert('Nama kelas wajib diisi!');
       return;
     }
+    
+    // Proteksi: Pastikan admin telah membuat & memilih Tahun Ajaran
+    if (!academicYearId) {
+      alert('Pilih Tahun Ajaran terlebih dahulu!');
+      return;
+    }
 
     try {
       setLoading(true);
@@ -106,7 +119,7 @@ export default function EditClassPage() {
           grade_level: gradeLevel,
           capacity: parseInt(capacity) || 36,
           homeroom_teacher_id: homeroomTeacherId || null,
-          academic_year: academicYear,
+          academic_year_id: academicYearId, // <-- Menyimpan relasi baru
         })
         .eq('class_id', classId);
 
@@ -222,7 +235,7 @@ export default function EditClassPage() {
             <select
               value={homeroomTeacherId}
               onChange={(e) => setHomeroomTeacherId(e.target.value)}
-              className="w-full border rounded-xl p-2.5 font-medium focus:outline-none transition-colors duration-300"
+              className="w-full border rounded-xl p-2.5 font-medium focus:outline-none transition-colors duration-300 cursor-pointer"
               style={{ 
                 backgroundColor: 'var(--bg-card-hover)', 
                 borderColor: 'var(--border-theme)',
@@ -238,20 +251,43 @@ export default function EditClassPage() {
             </select>
           </div>
 
+          {/* Smart Fallback Dropdown: Tahun Ajaran */}
           <div>
             <label className="block font-bold mb-1" style={{ color: 'var(--text-main)' }}>Tahun Ajaran</label>
-            <input
-              type="text"
-              value={academicYear}
-              onChange={(e) => setAcademicYear(e.target.value)}
-              placeholder="Contoh: 2025/2026"
-              className="w-full border rounded-xl p-2.5 font-medium focus:outline-none transition-colors duration-300"
-              style={{ 
-                backgroundColor: 'var(--bg-card-hover)', 
-                borderColor: 'var(--border-theme)',
-                color: 'var(--text-main)'
-              }}
-            />
+            {academicYears.length > 0 ? (
+                <select
+                  value={academicYearId}
+                  onChange={(e) => setAcademicYearId(e.target.value)}
+                  className="w-full border rounded-xl p-2.5 font-medium focus:outline-none transition-colors duration-300 cursor-pointer"
+                  style={{ 
+                    backgroundColor: 'var(--bg-card-hover)', 
+                    borderColor: 'var(--border-theme)',
+                    color: 'var(--text-main)'
+                  }}
+                >
+                   {/* Opsi kosong (jika belum diset) */}
+                   {!academicYearId && <option value="">-- Pilih Tahun Ajaran --</option>}
+                   
+                   {academicYears.map(ay => (
+                       <option key={ay.academic_year_id} value={ay.academic_year_id}>
+                          {ay.year_name} {ay.is_active ? ' (Berjalan)' : ''}
+                       </option>
+                   ))}
+                </select>
+            ) : (
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200">
+                    <p className="text-[10px] text-amber-700 font-semibold mb-2">
+                       ⚠️ Belum ada referensi Tahun Ajaran. Anda wajib membuatnya sebelum memperbarui kelas ini.
+                    </p>
+                    <button 
+                       type="button"
+                       onClick={() => router.push('/admin/settings/schoolsetting')}
+                       className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-sm font-bold w-full transition cursor-pointer"
+                    >
+                       + Buat Tahun Ajaran Sekarang
+                    </button>
+                </div>
+            )}
           </div>
 
           <div className="pt-2 flex items-center gap-2">
@@ -269,7 +305,7 @@ export default function EditClassPage() {
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || academicYears.length === 0}
               className="flex-1 font-bold py-3 rounded-xl shadow-md transition cursor-pointer disabled:opacity-50"
               style={{ 
                 backgroundColor: 'var(--accent-btn)', 

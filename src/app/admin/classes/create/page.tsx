@@ -5,7 +5,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import '@/style/admin-theme.css'; // <-- Import CSS Tema Admin
+import { academicYearService } from '@/services/settingsService'; // <-- Jembatan layanan
+import '@/style/admin-theme.css'; 
 
 export default function CreateClassPage() {
   const router = useRouter();
@@ -13,16 +14,18 @@ export default function CreateClassPage() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [tenantId, setTenantId] = useState<string | null>(null);
 
-  // State Switcher Mode: 'single' atau 'bulk'
   const [mode, setMode] = useState<'single' | 'bulk'>('single');
 
-  // State Form Single Add
+  // --- STATE ACADEMIC YEAR ---
+  const [academicYears, setAcademicYears] = useState<any[]>([]); // Menyimpan opsi referensi tahun ajaran
+  const [activeAcademicYear, setActiveAcademicYear] = useState<any>(null); // Penanda prioritas pilihan pertama
+
   const [singleName, setSingleName] = useState('');
   const [singleGrade, setSingleGrade] = useState('');
   const [singleCapacity, setSingleCapacity] = useState('36');
-  const [singleAcademicYear, setSingleAcademicYear] = useState('2025/2026');
+  // State untuk menyimpan ID relasional (bukan lagi string text manual)
+  const [singleAcademicYearId, setSingleAcademicYearId] = useState('');
 
-  // State Form Bulk Add (Murni Textarea Bebas)
   const [bulkData, setBulkData] = useState('');
 
   useEffect(() => {
@@ -44,6 +47,21 @@ export default function CreateClassPage() {
 
         if (userData?.tenant_id) {
           setTenantId(userData.tenant_id);
+          
+          // Memuat referensi tahun ajaran
+          const [ayList, activeAy] = await Promise.all([
+             academicYearService.fetchAcademicYears(userData.tenant_id),
+             academicYearService.getActiveAcademicYear(userData.tenant_id)
+          ]);
+          
+          setAcademicYears(ayList || []);
+          setActiveAcademicYear(activeAy);
+          
+          if (activeAy) {
+             setSingleAcademicYearId(activeAy.academic_year_id);
+          } else if (ayList && ayList.length > 0) {
+             setSingleAcademicYearId(ayList[0].academic_year_id);
+          }
         }
       } catch (err) {
         console.error('Gagal memuat data awal:', err);
@@ -58,12 +76,17 @@ export default function CreateClassPage() {
     localStorage.setItem('admin_active_theme', newTheme);
   };
 
-  // Handler Simpan Single Add
   const handleSingleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!singleName.trim()) {
       alert('Nama kelas wajib diisi!');
       return;
+    }
+    
+    // Proteksi: Pastikan admin memilih referensi tahun ajaran
+    if (!singleAcademicYearId) {
+       alert('Pilih Tahun Ajaran terlebih dahulu!');
+       return;
     }
 
     try {
@@ -74,7 +97,7 @@ export default function CreateClassPage() {
           class_name: singleName.trim(),
           grade_level: singleGrade.trim() || null,
           capacity: parseInt(singleCapacity) || 36,
-          academic_year: singleAcademicYear.trim(),
+          academic_year_id: singleAcademicYearId, // <-- Payload berubah
           homeroom_teacher_id: null,
         },
       ]);
@@ -91,7 +114,6 @@ export default function CreateClassPage() {
     }
   };
 
-  // Handler Simpan Bulk Add (Sesuai Urutan Kolom)
   const handleBulkSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!bulkData.trim()) {
@@ -107,20 +129,21 @@ export default function CreateClassPage() {
       lines.forEach((line) => {
         const trimmedLine = line.trim();
         if (trimmedLine) {
-          // Memisahkan kolom berdasarkan tab (Excel) atau koma (,)
           const columns = trimmedLine.split(/\t|,/).map((col) => col.trim());
           
-          const name = columns[0]; // Kolom 1: Nama Kelas
-          const grade = columns[1] || null; // Kolom 2: Level Kelas (Opsional)
-          const academicYear = columns[2] || '2025/2026'; // Kolom 3: Tahun Ajaran (Opsional)
-          const capacity = parseInt(columns[3]) || 36; // Kolom 4: Kapasitas (Opsional)
+          const name = columns[0];
+          const grade = columns[1] || null;
+          const capacity = parseInt(columns[3]) || 36; 
+          
+          // Bulk add secara mutlak akan menggunakan tahun ajaran aktif atau yang ada di dropdown
+          const fallbackAyId = singleAcademicYearId; 
 
-          if (name) {
+          if (name && fallbackAyId) {
             classesToInsert.push({
               tenant_id: tenantId,
               class_name: name,
               grade_level: grade,
-              academic_year: academicYear,
+              academic_year_id: fallbackAyId, // <-- Menggunakan fallback
               capacity: capacity,
               homeroom_teacher_id: null,
             });
@@ -129,7 +152,7 @@ export default function CreateClassPage() {
       });
 
       if (classesToInsert.length === 0) {
-        alert('Tidak ada format data kelas yang valid terbaca.');
+        alert('Format salah atau referensi Tahun Ajaran belum dibuat.');
         setLoading(false);
         return;
       }
@@ -231,16 +254,36 @@ export default function CreateClassPage() {
               />
             </div>
 
+            {/* Smart Fallback Dropdown */}
             <div>
-              <label className="block font-bold mb-1" style={{ color: 'var(--text-main)' }}>Tahun Ajaran (academic_year)</label>
-              <input
-                type="text"
-                placeholder="Contoh: 2025/2026"
-                value={singleAcademicYear}
-                onChange={(e) => setSingleAcademicYear(e.target.value)}
-                className="w-full border rounded-xl p-2.5 font-medium focus:outline-none"
-                style={{ backgroundColor: 'var(--bg-card-hover)', borderColor: 'var(--border-theme)', color: 'var(--text-main)' }}
-              />
+              <label className="block font-bold mb-1" style={{ color: 'var(--text-main)' }}>Tahun Ajaran</label>
+              {academicYears.length > 0 ? (
+                  <select
+                    value={singleAcademicYearId}
+                    onChange={(e) => setSingleAcademicYearId(e.target.value)}
+                    className="w-full border rounded-xl p-2.5 font-medium focus:outline-none cursor-pointer"
+                    style={{ backgroundColor: 'var(--bg-card-hover)', borderColor: 'var(--border-theme)', color: 'var(--text-main)' }}
+                  >
+                     {academicYears.map(ay => (
+                         <option key={ay.academic_year_id} value={ay.academic_year_id}>
+                            {ay.year_name} {ay.is_active ? ' (Berjalan)' : ''}
+                         </option>
+                     ))}
+                  </select>
+              ) : (
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200">
+                      <p className="text-[10px] text-amber-700 font-semibold mb-2">
+                         ⚠️ Belum ada referensi Tahun Ajaran. Anda wajib membuatnya sebelum membuat kelas.
+                      </p>
+                      <button 
+                         type="button"
+                         onClick={() => router.push('/admin/settings/schoolsetting')}
+                         className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-sm font-bold w-full transition cursor-pointer"
+                      >
+                         + Buat Tahun Ajaran Sekarang
+                      </button>
+                  </div>
+              )}
             </div>
 
             <div>
@@ -265,7 +308,7 @@ export default function CreateClassPage() {
               </button>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || academicYears.length === 0}
                 className="flex-1 font-bold py-3 rounded-xl shadow-md transition cursor-pointer disabled:opacity-50 bg-blue-600 text-white hover:bg-blue-700"
               >
                 {loading ? 'Menyimpan...' : 'Simpan Kelas'}
@@ -274,7 +317,7 @@ export default function CreateClassPage() {
           </form>
         )}
 
-        {/* KONTEN FORM: BULK ADD (MURNI TEXTAREA BEBAS) */}
+        {/* KONTEN FORM: BULK ADD */}
         {mode === 'bulk' && (
           <form 
             onSubmit={handleBulkSubmit} 
@@ -285,6 +328,38 @@ export default function CreateClassPage() {
               Form Tambah Massal (Bulk Paste)
             </div>
 
+            {/* Smart Fallback Dropdown */}
+            <div>
+              <label className="block font-bold mb-1" style={{ color: 'var(--text-main)' }}>Pilih Tahun Ajaran Untuk Daftar Kelas Ini</label>
+              {academicYears.length > 0 ? (
+                  <select
+                    value={singleAcademicYearId}
+                    onChange={(e) => setSingleAcademicYearId(e.target.value)}
+                    className="w-full border rounded-xl p-2.5 font-medium focus:outline-none cursor-pointer"
+                    style={{ backgroundColor: 'var(--bg-card-hover)', borderColor: 'var(--border-theme)', color: 'var(--text-main)' }}
+                  >
+                     {academicYears.map(ay => (
+                         <option key={ay.academic_year_id} value={ay.academic_year_id}>
+                            {ay.year_name} {ay.is_active ? ' (Berjalan)' : ''}
+                         </option>
+                     ))}
+                  </select>
+              ) : (
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200">
+                      <p className="text-[10px] text-amber-700 font-semibold mb-2">
+                         ⚠️ Belum ada referensi Tahun Ajaran. Anda wajib membuatnya sebelum membuat kelas.
+                      </p>
+                      <button 
+                         type="button"
+                         onClick={() => router.push('/admin/settings/schoolsetting')}
+                         className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-sm font-bold w-full transition cursor-pointer"
+                      >
+                         + Buat Tahun Ajaran Sekarang
+                      </button>
+                  </div>
+              )}
+            </div>
+
             <div>
               <div className="flex justify-between items-center mb-1">
                 <label className="font-bold" style={{ color: 'var(--text-main)' }}>Data Kelas (Paste dari Excel / Ketik Manual)</label>
@@ -292,14 +367,14 @@ export default function CreateClassPage() {
               </div>
               <textarea
                 rows={8}
-                placeholder={`X IPA 1, Kelas X, 2025/2026, 36\nXI IPS 1, Kelas XI, 2025/2026, 30\nXII MIPA 2, Kelas XII, 2025/2026, 32`}
+                placeholder={`X IPA 1, Kelas X, -, 36\nXI IPS 1, Kelas XI, -, 30\nXII MIPA 2, Kelas XII, -, 32`}
                 value={bulkData}
                 onChange={(e) => setBulkData(e.target.value)}
                 className="w-full border rounded-xl p-2.5 font-mono text-xs focus:outline-none resize-y"
                 style={{ backgroundColor: 'var(--bg-card-hover)', borderColor: 'var(--border-theme)', color: 'var(--text-main)' }}
               />
               <p className="text-[10px] opacity-70 mt-1">
-                Pisahkan kolom dengan koma (,) atau langsung *Ctrl+V* copy dari Excel. Bisa mencampur kelas 10, 11, dan 12 sekaligus dalam satu kali proses!
+                Pisahkan kolom dengan koma (,) atau langsung *Ctrl+V* copy dari Excel. Kolom tahun ajaran di teks akan diabaikan dan merujuk pada dropdown di atas.
               </p>
             </div>
 
@@ -314,7 +389,7 @@ export default function CreateClassPage() {
               </button>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || academicYears.length === 0}
                 className="flex-1 font-bold py-3 rounded-xl shadow-md transition cursor-pointer disabled:opacity-50 bg-blue-600 text-white hover:bg-blue-700"
               >
                 {loading ? 'Menyimpan...' : 'Simpan Semua Kelas'}

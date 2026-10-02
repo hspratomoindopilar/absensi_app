@@ -12,6 +12,7 @@ import {
     deleteSchoolHoliday,
     fetchEffectiveDays,
     saveEffectiveDays,
+    academicYearService
 } from '@/services/settingsService';
 import { SchoolHoliday } from '@/types/database';
 import BottomNav from '@/components/BottomNav';
@@ -73,6 +74,20 @@ export default function SchoolSettingAdminPage() {
     const [subjectName, setSubjectName] = useState('');
     const [savingSubject, setSavingSubject] = useState(false);
 
+    // State Academic Year
+    const [academicYears, setAcademicYears] = useState<any[]>([]);
+    const [activeAcademicYear, setActiveAcademicYear] = useState<any>(null);
+    const [ayYearName, setAyYearName] = useState('');
+    const [ayStartDate, setAyStartDate] = useState('');
+    const [ayEndDate, setAyEndDate] = useState('');
+    const [savingAy, setSavingAy] = useState(false);
+
+    // State untuk konfirmasi aksi Tahun Ajaran
+    const [pendingActionAy, setPendingActionAy] = useState<{ type: 'active' | 'delete'; id: string; name: string } | null>(null);
+
+    // State untuk mode edit tahun ajaran
+    const [editingAyId, setEditingAyId] = useState<string | null>(null);
+
     useEffect(() => {
         const savedTheme = (localStorage.getItem('admin_active_theme') as 'light' | 'dark') || 'light';
         setTheme(savedTheme);
@@ -102,16 +117,20 @@ export default function SchoolSettingAdminPage() {
                 const loadedClasses = classesData || [];
                 setClassList(loadedClasses);
 
-                const [settings, holidayList, globalEffectiveDays, subjectsData] = await Promise.all([
+                const [settings, holidayList, globalEffectiveDays, subjectsData, ayData, activeAyData] = await Promise.all([
                     fetchTenantSettings(info.tenantId),
                     fetchSchoolHolidays(info.tenantId),
                     fetchEffectiveDays(info.tenantId, null),
                     supabase.from('subjects').select('*').eq('tenant_id', info.tenantId).order('subject_name', { ascending: true }),
+                    academicYearService.fetchAcademicYears(info.tenantId), // Fetch semua tahun ajaran
+                    academicYearService.getActiveAcademicYear(info.tenantId) // Fetch tahun ajaran aktif
                 ]);
 
                 setSchoolDays(settings.school_days);
                 setHolidays(holidayList);
                 setSubjects(subjectsData.data || []);
+                setAcademicYears(ayData || []);
+                setActiveAcademicYear(activeAyData);
 
                 const defaultDaysState = { senin: true, selasa: true, rabu: true, kamis: true, jumat: true, sabtu: false, minggu: false };
 
@@ -147,6 +166,8 @@ export default function SchoolSettingAdminPage() {
                     }
                 }
                 setClassHesOverrides(overridesMap);
+
+
 
             } catch (err: any) {
                 console.error('Gagal memuat pengaturan:', err);
@@ -380,6 +401,96 @@ export default function SchoolSettingAdminPage() {
         );
     }
 
+    // Handler Tambah Tahun Ajaran Baru
+    const handleSaveAcademicYear = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!ayYearName.trim()) {
+            setErrorMsg('Nama Tahun Ajaran wajib diisi!');
+            return;
+        }
+
+        try {
+            setSavingAy(true);
+            setErrorMsg('');
+            setSuccessMsg('');
+
+            if (editingAyId) {
+                // Mode Update
+                await academicYearService.updateAcademicYear(editingAyId, tenantId, {
+                    year_name: ayYearName.trim(),
+                    start_date: ayStartDate || null,
+                    end_date: ayEndDate || null,
+                });
+                setSuccessMsg('Tahun Ajaran berhasil diperbarui.');
+            } else {
+                // Mode Tambah Baru
+                await academicYearService.createAcademicYear({
+                    tenant_id: tenantId,
+                    year_name: ayYearName.trim(),
+                    start_date: ayStartDate || undefined,
+                    end_date: ayEndDate || undefined,
+                    is_active: false
+                });
+                setSuccessMsg('Tahun Ajaran berhasil ditambahkan.');
+            }
+
+            // Reset Form & Refresh Data
+            setEditingAyId(null);
+            setAyYearName('');
+            setAyStartDate('');
+            setAyEndDate('');
+
+            const updatedList = await academicYearService.fetchAcademicYears(tenantId);
+            setAcademicYears(updatedList || []);
+            setTimeout(() => setSuccessMsg(''), 4000);
+        } catch (err: any) {
+            setErrorMsg('Gagal menyimpan Tahun Ajaran: ' + err.message);
+        } finally {
+            setSavingAy(false);
+        }
+    };
+
+    // Handler Set Active Tahun Ajaran
+    const handleSetActiveAcademicYear = async (id: string) => {
+        try {
+            setErrorMsg('');
+            setSuccessMsg('');
+
+            await academicYearService.setAsActive(id, tenantId);
+
+            // Refresh data
+            const [updatedList, updatedActive] = await Promise.all([
+                academicYearService.fetchAcademicYears(tenantId),
+                academicYearService.getActiveAcademicYear(tenantId)
+            ]);
+            setAcademicYears(updatedList || []);
+            setActiveAcademicYear(updatedActive);
+
+            setSuccessMsg('Tahun Ajaran aktif berhasil diubah.');
+            setTimeout(() => setSuccessMsg(''), 4000);
+        } catch (err: any) {
+            setErrorMsg('Gagal mengaktifkan Tahun Ajaran: ' + err.message);
+        }
+    };
+
+    // Handler Hapus Tahun Ajaran
+    const handleDeleteAcademicYear = async (id: string) => {
+        if (!confirm('Apakah Anda yakin ingin menghapus Tahun Ajaran ini?')) return;
+
+        try {
+            setErrorMsg('');
+            await academicYearService.deleteAcademicYear(id);
+
+            // Refresh data
+            const updatedList = await academicYearService.fetchAcademicYears(tenantId);
+            setAcademicYears(updatedList || []);
+
+            setSuccessMsg('Tahun Ajaran berhasil dihapus.');
+            setTimeout(() => setSuccessMsg(''), 4000);
+        } catch (err: any) {
+            setErrorMsg('Gagal menghapus Tahun Ajaran: ' + err.message);
+        }
+    };
 
 
     return (
@@ -439,6 +550,28 @@ export default function SchoolSettingAdminPage() {
 
                     {openSections.globalHes && (
                         <div className="p-4 space-y-3 animate-fadeIn">
+                            {/* BLOK CURRENT ACADEMIC YEAR (INFO SAJA) */}
+                            <div
+                                className="p-3.5 rounded-xl border flex items-center justify-between shadow-sm transition-colors"
+                                style={{ backgroundColor: 'var(--bg-main)', borderColor: 'var(--border-theme)' }}
+                            >
+                                <div>
+                                    <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>
+                                        Tahun Ajaran Berjalan
+                                    </p>
+                                    <h3 className="text-sm font-extrabold" style={{ color: 'var(--text-main)' }}>
+                                        {activeAcademicYear ? activeAcademicYear.year_name : 'Belum Ditentukan'}
+                                    </h3>
+                                    {activeAcademicYear && (
+                                        <p className="text-[10px] font-medium opacity-80 mt-0.5" style={{ color: 'var(--text-main)' }}>
+                                            {activeAcademicYear.start_date || '?'} s/d {activeAcademicYear.end_date || '?'}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg" style={{ backgroundColor: 'var(--bg-card-hover)', color: 'var(--text-main)' }}>
+                                    🎓
+                                </div>
+                            </div>
                             <div className="grid grid-cols-3 gap-2">
                                 <button
                                     type="button"
@@ -807,7 +940,7 @@ export default function SchoolSettingAdminPage() {
                         </div>
                     )}
 
-                    {/* ACCORDION 5: REFERENSI & PENDUKUNG (SUBJECTS) */}
+                    {/* ACCORDION 5: REFERENSI & PENDUKUNG (SUBJECTS & ACADEMIC YEARS) */}
                     <div
                         className="border rounded-2xl overflow-hidden transition-all shadow-xs hover:border-[var(--border-hover-theme)]"
                         style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-theme)' }}
@@ -827,40 +960,159 @@ export default function SchoolSettingAdminPage() {
 
                         {openSections.subjects && (
                             <div className="p-4 space-y-3 animate-fadeIn">
-                                <form onSubmit={handleAddSubject} className="space-y-2.5">
-                                    <div className="grid grid-cols-3 gap-2">
-                                        <div className="col-span-1">
-                                            <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Kode (Opsional)</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Cth: MAT"
-                                                value={subjectCode}
-                                                onChange={(e) => setSubjectCode(e.target.value)}
-                                                className="w-full px-3 py-2 rounded-xl border text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                style={{ backgroundColor: 'var(--bg-main)', borderColor: 'var(--border-theme)', color: 'var(--text-main)' }}
-                                            />
-                                        </div>
-                                        <div className="col-span-2">
-                                            <label className="block text-[10px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Nama Mata Pelajaran</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Cth: Matematika Lanjutan"
-                                                value={subjectName}
-                                                onChange={(e) => setSubjectName(e.target.value)}
-                                                className="w-full px-3 py-2 rounded-xl border text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                style={{ backgroundColor: 'var(--bg-main)', borderColor: 'var(--border-theme)', color: 'var(--text-main)' }}
-                                            />
-                                        </div>
-                                    </div>
+                                {/* --- BAGIAN TAHUN AJARAN --- */}
+                                <div className="space-y-3">
+                                    <h3 className="text-xs font-extrabold uppercase tracking-wider border-b pb-1" style={{ color: 'var(--text-main)', borderColor: 'var(--border-theme)' }}>
+                                        Master Tahun Ajaran
+                                    </h3>
 
-                                    <button
-                                        type="submit"
-                                        disabled={savingSubject}
-                                        className="w-full mt-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-2 cursor-pointer"
-                                    >
-                                        {savingSubject ? 'Menyimpan...' : '➕ Tambahkan Mata Pelajaran'}
-                                    </button>
-                                </form>
+                                    {/* FORM TAMBAH TAHUN AJARAN */}
+                                    <form onSubmit={handleSaveAcademicYear} className="space-y-2.5 p-3 rounded-xl border shadow-sm transition-colors" style={{ backgroundColor: 'var(--bg-main)', borderColor: 'var(--border-theme)' }}>
+                                        <div>
+                                            <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Tahun Ajaran <span className="text-rose-500">*</span></label>
+                                            <input
+                                                type="text"
+                                                placeholder="Cth: 2026/2027"
+                                                value={ayYearName}
+                                                onChange={(e) => setAyYearName(e.target.value)}
+                                                className="w-full px-3 py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-transparent transition-colors"
+                                                style={{ borderColor: 'var(--border-theme)', color: 'var(--text-main)' }}
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Mulai (Opsional)</label>
+                                                <input
+                                                    type="date"
+                                                    value={ayStartDate}
+                                                    onChange={(e) => setAyStartDate(e.target.value)}
+                                                    className="w-full px-3 py-1.5 rounded-lg border text-xs outline-none bg-transparent transition-colors"
+                                                    style={{ borderColor: 'var(--border-theme)', color: 'var(--text-main)' }}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Selesai (Opsional)</label>
+                                                <input
+                                                    type="date"
+                                                    value={ayEndDate}
+                                                    onChange={(e) => setAyEndDate(e.target.value)}
+                                                    className="w-full px-3 py-1.5 rounded-lg border text-xs outline-none bg-transparent transition-colors"
+                                                    style={{ borderColor: 'var(--border-theme)', color: 'var(--text-main)' }}
+                                                />
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="flex gap-2 mt-1">
+                                            <button type="submit" disabled={savingAy} className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-bold shadow-sm active:scale-95 transition cursor-pointer">
+                                                {savingAy ? 'Menyimpan...' : (editingAyId ? '💾 Simpan Perubahan' : '➕ Tambah Master Tahun Ajaran')}
+                                            </button>
+                                            {editingAyId && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setEditingAyId(null);
+                                                        setAyYearName('');
+                                                        setAyStartDate('');
+                                                        setAyEndDate('');
+                                                    }}
+                                                    className="px-3 py-2 bg-slate-500 hover:bg-slate-600 text-white rounded-lg text-[11px] font-bold transition cursor-pointer"
+                                                >
+                                                    Batal
+                                                </button>
+                                            )}
+                                        </div>
+                                    </form>
+
+                                    {/* DAFTAR TAHUN AJARAN */}
+                                    <div className="max-h-40 overflow-y-auto pr-1 space-y-1.5 pt-1">
+                                        {academicYears.map((ay) => (
+                                            <div
+                                                key={ay.academic_year_id}
+                                                className="p-2.5 rounded-xl border flex items-center justify-between text-xs transition shadow-sm hover:border-[var(--border-hover-theme)]"
+                                                style={{
+                                                    backgroundColor: ay.is_active ? 'var(--bg-card-hover)' : 'var(--bg-card)',
+                                                    borderColor: ay.is_active ? 'var(--accent-btn)' : 'var(--border-theme)'
+                                                }}
+                                            >
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-bold" style={{ color: ay.is_active ? 'var(--accent-btn)' : 'var(--text-main)' }}>{ay.year_name}</span>
+                                                        {ay.is_active && <span className="text-[8px] bg-emerald-500 text-white px-1.5 py-0.5 rounded-md font-bold uppercase tracking-widest shadow-sm">Active</span>}
+                                                    </div>
+                                                    <span className="text-[9px] font-medium mt-0.5 block" style={{ color: 'var(--text-muted)' }}>
+                                                        {ay.start_date || '-'} s/d {ay.end_date || '-'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    {!ay.is_active && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setPendingActionAy({ type: 'active', id: ay.academic_year_id, name: ay.year_name })}
+                                                            className="text-[10px] font-bold px-2 py-1 rounded-md transition border cursor-pointer hover:opacity-80"
+                                                            style={{ backgroundColor: 'var(--bg-main)', borderColor: 'var(--border-theme)', color: 'var(--text-main)' }}
+                                                        >
+                                                            Set Active
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setEditingAyId(ay.academic_year_id);
+                                                            setAyYearName(ay.year_name);
+                                                            setAyStartDate(ay.start_date || '');
+                                                            setAyEndDate(ay.end_date || '');
+                                                        }}
+                                                        className="text-[10px] bg-blue-50 hover:bg-blue-100 text-blue-600 px-2 py-1 rounded-md transition border border-blue-200 font-bold cursor-pointer"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <hr className="border-slate-200" style={{ borderColor: 'var(--border-theme)' }} />
+
+                                <div className="space-y-3">
+                                    <h3 className="text-xs font-extrabold uppercase tracking-wider border-b pb-1" style={{ color: 'var(--text-main)', borderColor: 'var(--border-theme)' }}>
+                                        Master Mata Pelajaran
+                                    </h3>
+
+                                    <form onSubmit={handleAddSubject} className="space-y-2.5 p-3 rounded-xl border shadow-sm transition-colors" style={{ backgroundColor: 'var(--bg-main)', borderColor: 'var(--border-theme)' }}>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <div className="col-span-1">
+                                                <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Kode (Opsional)</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Cth: MAT"
+                                                    value={subjectCode}
+                                                    onChange={(e) => setSubjectCode(e.target.value)}
+                                                    className="w-full px-3 py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-transparent transition-colors"
+                                                    style={{ borderColor: 'var(--border-theme)', color: 'var(--text-main)' }}
+                                                />
+                                            </div>
+                                            <div className="col-span-2">
+                                                <label className="block text-[10px] font-bold mb-1 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Nama Mata Pelajaran</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Cth: Matematika Lanjutan"
+                                                    value={subjectName}
+                                                    onChange={(e) => setSubjectName(e.target.value)}
+                                                    className="w-full px-3 py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-transparent transition-colors"
+                                                    style={{ borderColor: 'var(--border-theme)', color: 'var(--text-main)' }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            type="submit"
+                                            disabled={savingSubject}
+                                            className="w-full mt-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg text-[11px] shadow-sm active:scale-95 transition flex items-center justify-center gap-2 cursor-pointer"
+                                        >
+                                            {savingSubject ? 'Menyimpan...' : '➕ Tambahkan Mata Pelajaran'}
+                                        </button>
+                                    </form>
+                                </div>
 
                                 <div className="pt-2 border-t space-y-2" style={{ borderColor: 'var(--border-theme)' }}>
                                     <h3 className="text-[11px] font-bold" style={{ color: 'var(--text-muted)' }}>Daftar Mata Pelajaran ({subjects.length})</h3>
@@ -932,6 +1184,57 @@ export default function SchoolSettingAdminPage() {
                                 className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer transition shadow-xs"
                             >
                                 Ya, Ubah Sistem
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL SAFETY NET / KONFIRMASI TAHUN AJARAN */}
+            {pendingActionAy !== null && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+                    <div
+                        className="w-full max-w-xs rounded-2xl p-4 space-y-3 shadow-xl border animate-scaleUp"
+                        style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-theme)' }}
+                    >
+                        <div className="text-center space-y-1">
+                            <span className="text-2xl">⚠️</span>
+                            <h3 className="font-bold text-xs uppercase tracking-wider text-rose-500">
+                                {pendingActionAy.type === 'active' ? 'Konfirmasi Beralih Tahun Ajaran' : 'Konfirmasi Hapus Tahun Ajaran'}
+                            </h3>
+                            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                                {pendingActionAy.type === 'active' ? (
+                                    <>Peringatan! Anda hendak Ubah / Beralih Tahun Ajaran ke <strong className="text-blue-500">{pendingActionAy.name}</strong>?</>
+                                ) : (
+                                    <>Peringatan! Anda hendak menghapus Tahun Ajaran <strong className="text-rose-500">{pendingActionAy.name}</strong>? Tindakan ini dapat berdampak sistemik jika masih ada data kelas yang terikat.</>
+                                )}
+                            </p>
+                        </div>
+
+                        <div className="flex gap-2 pt-1">
+                            <button
+                                type="button"
+                                onClick={() => setPendingActionAy(null)}
+                                className="flex-1 py-2 rounded-xl border text-xs font-bold cursor-pointer transition"
+                                style={{ borderColor: 'var(--border-theme)', color: 'var(--text-main)' }}
+                            >
+                                Tidak
+                            </button>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    const action = pendingActionAy;
+                                    setPendingActionAy(null);
+                                    if (action.type === 'active') {
+                                        await handleSetActiveAcademicYear(action.id);
+                                    } else {
+                                        await handleDeleteAcademicYear(action.id);
+                                    }
+                                }}
+                                className={`flex-1 py-2 rounded-xl text-white text-xs font-bold cursor-pointer transition shadow-xs ${pendingActionAy.type === 'active' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-rose-600 hover:bg-rose-700'
+                                    }`}
+                            >
+                                Ya
                             </button>
                         </div>
                     </div>

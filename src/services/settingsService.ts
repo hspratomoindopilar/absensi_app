@@ -232,3 +232,97 @@ export async function deleteClassSchedule(scheduleId: string) {
   if (error) throw new Error(error.message);
 }
 
+//======================= ACADEMIC YEAR SECTION ==============================================
+
+export const academicYearService = {
+  // Ambil semua daftar tahun ajaran milik tenant tersebut
+  async fetchAcademicYears(tenantId: string) {
+    const { data, error } = await supabase
+      .from('academic_years')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Ambil 1 tahun ajaran yang sedang aktif
+  async getActiveAcademicYear(tenantId: string) {
+    const { data, error } = await supabase
+      .from('academic_years')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .eq('is_active', true)
+      .maybeSingle(); // Pakai maybeSingle agar tidak error jika belum ada yang aktif
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Matikan semua status aktif di tenant ini (Utility internal)
+  async _deactivateAll(tenantId: string) {
+    const { error } = await supabase
+      .from('academic_years')
+      .update({ is_active: false })
+      .eq('tenant_id', tenantId)
+      .neq('is_active', false); // Hanya update yang true agar hemat performa
+    
+    if (error) throw error;
+  },
+
+  // Jadikan satu tahun ajaran sebagai yang aktif
+  async setAsActive(id: string, tenantId: string) {
+    await this._deactivateAll(tenantId);
+    
+    const { error } = await supabase
+      .from('academic_years')
+      .update({ is_active: true })
+      .eq('academic_year_id', id);
+
+    if (error) throw error;
+  },
+
+  // Tambah tahun ajaran baru
+  async createAcademicYear(payload: { tenant_id: string, year_name: string, start_date?: string, end_date?: string, is_active: boolean }) {
+    if (payload.is_active) {
+      await this._deactivateAll(payload.tenant_id);
+    }
+
+    const { data, error } = await supabase
+      .from('academic_years')
+      .insert([payload])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Edit tahun ajaran
+  async updateAcademicYear(id: string, tenantId: string, payload: { year_name: string, start_date?: string | null, end_date?: string | null, is_active?: boolean }) {
+    if (payload.is_active) {
+      await this._deactivateAll(tenantId);
+    }
+
+    const { data, error } = await supabase
+      .from('academic_years')
+      .update(payload)
+      .eq('academic_year_id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Hapus tahun ajaran
+  async deleteAcademicYear(id: string) {
+    const { error } = await supabase
+      .from('academic_years')
+      .delete()
+      .eq('academic_year_id', id);
+
+    if (error) throw error;
+  }
+};

@@ -25,6 +25,7 @@
 | `grade_level` | `varchar` |  Nullable |
 | `capacity` | `int4` |  Nullable |
 | `homeroom_teacher_id` | `uuid` |  Nullable |
+| `academic_year_id` | `uuid` |  Nullable |
 
 ## Table `users`
 
@@ -244,6 +245,21 @@
 | `academic_year` | `varchar` |  Nullable |
 | `is_active` | `bool` |  Nullable |
 | `created_at` | `timestamptz` |  Nullable |
+| `academic_year_id` | `uuid` |  Nullable |
+
+## Table `academic_years`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `academic_year_id` | `uuid` | Primary |
+| `tenant_id` | `uuid` |  |
+| `year_name` | `varchar` |  |
+| `start_date` | `date` |  Nullable |
+| `end_date` | `date` |  Nullable |
+| `is_active` | `bool` |  Nullable |
+| `created_at` | `timestamptz` |  |
 
 ## RLS Policies
 
@@ -265,6 +281,13 @@
 | Policy | Command | Roles | Action | USING | WITH CHECK |
 |--------|---------|-------|--------|-------|------------|
 | `Enable all access for teachers on fl_games` | ALL | public | PERMISSIVE | `true` | `true` |
+
+### `classes`
+
+| Policy | Command | Roles | Action | USING | WITH CHECK |
+|--------|---------|-------|--------|-------|------------|
+| `Izinkan publik membaca data kelas` | SELECT | anon | PERMISSIVE | `true` | — |
+| `Tenant isolation for classes` | ALL | public | PERMISSIVE | `(tenant_id = get_user_tenant_id())` | — |
 
 ### `attendance`
 
@@ -288,13 +311,6 @@
 | `Izinkan publik modify fl_student_stats` | ALL | public | PERMISSIVE | `true` | `true` |
 | `Izinkan publik select fl_student_stats` | SELECT | public | PERMISSIVE | `true` | — |
 
-### `classes`
-
-| Policy | Command | Roles | Action | USING | WITH CHECK |
-|--------|---------|-------|--------|-------|------------|
-| `Izinkan publik membaca data kelas` | SELECT | anon | PERMISSIVE | `true` | — |
-| `Tenant isolation for classes` | ALL | public | PERMISSIVE | `(tenant_id = get_user_tenant_id())` | — |
-
 ### `students`
 
 | Policy | Command | Roles | Action | USING | WITH CHECK |
@@ -315,12 +331,6 @@
 |--------|---------|-------|--------|-------|------------|
 | `Tenant isolation for tenant_effective_days` | ALL | public | PERMISSIVE | `(tenant_id = get_user_tenant_id())` | — |
 
-### `student_class_history`
-
-| Policy | Command | Roles | Action | USING | WITH CHECK |
-|--------|---------|-------|--------|-------|------------|
-| `Tenant isolation for student_class_history` | ALL | public | PERMISSIVE | `(tenant_id = get_user_tenant_id())` | — |
-
 ### `class_schedules`
 
 | Policy | Command | Roles | Action | USING | WITH CHECK |
@@ -338,4 +348,16 @@
 | Policy | Command | Roles | Action | USING | WITH CHECK |
 |--------|---------|-------|--------|-------|------------|
 | `Enable all access for teacher_classes based on tenant` | ALL | public | PERMISSIVE | `true` | `true` |
+
+### `academic_years`
+
+| Policy | Command | Roles | Action | USING | WITH CHECK |
+|--------|---------|-------|--------|-------|------------|
+| `Tenant isolation for academic_years` | ALL | public | PERMISSIVE | `(tenant_id = get_user_tenant_id())` | — |
+
+### `student_class_history`
+
+| Policy | Command | Roles | Action | USING | WITH CHECK |
+|--------|---------|-------|--------|-------|------------|
+| `Tenant isolation for student_class_history` | ALL | public | PERMISSIVE | `(tenant_id = get_user_tenant_id())` | — |
 
